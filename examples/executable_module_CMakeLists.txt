@@ -37,4 +37,4 @@ target_link_libraries(${CMH_MODULE_NAME} PUBLIC
   # ex. ${OpenCV_LIBS}
 )
 
-cmh_end_module()
+cmh_link_modules()
