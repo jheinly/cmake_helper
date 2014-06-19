@@ -159,6 +159,12 @@ function(CMH_ADD_MODULE_SUBDIRECTORY)
   endforeach()
 endfunction(CMH_ADD_MODULE_SUBDIRECTORY)
 
+macro(CMH_ADD_HEADER_MODULE)
+  add_custom_target(${CMH_MODULE_NAME}_custom_target SOURCES ${ARGN})
+  set_target_properties(${CMH_MODULE_NAME}_custom_target PROPERTIES PROJECT_LABEL ${CMH_MODULE_NAME})
+  add_library(${CMH_MODULE_NAME} INTERFACE)
+endmacro(CMH_ADD_HEADER_MODULE)
+
 # This macro exists to enable functionality for commands that must be run in
 # the same subdirectory as the given target, ex. target_link_libraries().
 macro(CMH_LINK_MODULES)
