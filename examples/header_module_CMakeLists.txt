@@ -17,7 +17,7 @@ set(SOURCE_FILES
 source_group(${CMH_MODULE_NAME} FILES ${SOURCE_FILES})
 
 # Create a header module.
-cmh_add_header_module(${CMH_MODULE_NAME} ${SOURCE_FILES})
+cmh_add_header_module(${SOURCE_FILES})
 
 # Set the compile definitions necessary to use this module.
 target_compile_definitions(${CMH_MODULE_NAME} INTERFACE
