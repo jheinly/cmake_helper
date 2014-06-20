@@ -3,14 +3,24 @@ cmake_minimum_required(VERSION 3.0)
 # Include the following macro from the CMake Modules folder.
 include(CMakeParseArguments)
 
+# If the build type (Debug/Release) has not been set for a UNIX-style system,
+# go ahead and set it to Release. This helps avoid issues for configurations that
+# explicitly try to see if the current build type is either Debug or Release.
+if(UNIX)
+  if(NOT CMAKE_BUILD_TYPE)
+    message(STATUS "No build type selected, defaulting to Release...")
+    set(CMAKE_BUILD_TYPE "Release")
+  endif()
+endif()
+
 macro(CMH_NEW_MODULE_WITH_DEPENDENCIES)
   # Get the name of this module (based on the name of its config file).
   CMH_GET_MODULE_NAME(CMH_MODULE_NAME ${CMAKE_CURRENT_LIST_FILE})
-  
+
   # Prevent this function from being called more than one time in the current project.
   if(NOT ${CMH_MODULE_NAME}_DEFINED)
     set(${CMH_MODULE_NAME}_DEFINED TRUE)
-    
+
     # Parse the input arguments (the dependencies of this module).
     set(${CMH_MODULE_NAME}_MODULE_DEPENDENCY_PATHS "")
     set(${CMH_MODULE_NAME}_MODULE_DEPENDENCIES "")
@@ -22,7 +32,7 @@ macro(CMH_NEW_MODULE_WITH_DEPENDENCIES)
       CMH_GET_MODULE_NAME(DEPENDENCY_MODULE_NAME ${DEPENDENCY})
       list(APPEND ${CMH_MODULE_NAME}_MODULE_DEPENDENCIES ${DEPENDENCY_MODULE_NAME})
     endforeach()
-    
+
     # Iterate through the dependency modules and include them.
     foreach(DEPENDENCY ${${CMH_MODULE_NAME}_MODULE_DEPENDENCY_PATHS})
       if(IS_ABSOLUTE ${DEPENDENCY})
@@ -31,18 +41,18 @@ macro(CMH_NEW_MODULE_WITH_DEPENDENCIES)
         find_package(${DEPENDENCY})
       endif()
     endforeach()
-    
+
     # Set the name of this module again, as it will have been overwritten by
     # including any dependencies.
     CMH_GET_MODULE_NAME(CMH_MODULE_NAME ${CMAKE_CURRENT_LIST_FILE})
-    
+
     # Set the dependencies of this module to tbe the dependencies of its dependencies.
     foreach(DEPENDENCY ${${CMH_MODULE_NAME}_MODULE_DEPENDENCIES})
       list(APPEND
         ${CMH_MODULE_NAME}_MODULE_DEPENDENCIES
         ${${DEPENDENCY}_MODULE_DEPENDENCIES})
     endforeach()
-    
+
     CMH_ADD_MODULE_SUBDIRECTORY()
   endif()
 endmacro(CMH_NEW_MODULE_WITH_DEPENDENCIES)
@@ -50,21 +60,21 @@ endmacro(CMH_NEW_MODULE_WITH_DEPENDENCIES)
 function(CMH_ADD_MODULE_SUBDIRECTORY)
   # Include the CMakeLists.txt file from the current directory.
   add_subdirectory(${CMAKE_CURRENT_LIST_DIR} ${CMAKE_BINARY_DIR}/${CMH_MODULE_NAME})
-  
+
   # Help find Boost.
   CMH_FIND_BOOST_HELPER()
-  
+
   # Get the target type after the subdirectory has been processed.
   CMH_GET_TARGET_TYPE()
-  
+
   set(CMH_MODULE_NAME_DEBUG ${CMH_MODULE_NAME}_d)
-  
+
   if(CMH_IS_LIBRARY)
     # Create the paths to the library directories.
     set(${CMH_MODULE_NAME}_LIB_DIR ${CMAKE_BINARY_DIR}/lib)
     set(${CMH_MODULE_NAME}_DEBUG_LIB_DIR ${${CMH_MODULE_NAME}_LIB_DIR}/Debug)
     set(${CMH_MODULE_NAME}_RELEASE_LIB_DIR ${${CMH_MODULE_NAME}_LIB_DIR}/Release)
-    
+
     # Set the library output directories (static libraries).
     set_target_properties(${CMH_MODULE_NAME} PROPERTIES
       ARCHIVE_OUTPUT_DIRECTORY ${${CMH_MODULE_NAME}_LIB_DIR})
@@ -81,7 +91,7 @@ function(CMH_ADD_MODULE_SUBDIRECTORY)
     set_target_properties(${CMH_MODULE_NAME} PROPERTIES
       LIBRARY_OUTPUT_DIRECTORY_RELEASE ${${CMH_MODULE_NAME}_RELEASE_LIB_DIR})
   endif()
-  
+
   if(CMH_IS_EXECUTABLE)
     # Create the paths to the executable directories.
     set(${CMH_MODULE_NAME}_BIN_DIR ${CMAKE_BINARY_DIR}/bin)
@@ -96,7 +106,7 @@ function(CMH_ADD_MODULE_SUBDIRECTORY)
     set_target_properties(${CMH_MODULE_NAME} PROPERTIES
       RUNTIME_OUTPUT_DIRECTORY_RELEASE ${${CMH_MODULE_NAME}_RELEASE_BIN_DIR})
   endif()
-  
+
   if(CMH_IS_LIBRARY OR CMH_IS_EXECUTABLE)
     # Set the debug and release names of this target.
     set_target_properties(${CMH_MODULE_NAME} PROPERTIES
@@ -104,13 +114,13 @@ function(CMH_ADD_MODULE_SUBDIRECTORY)
     set_target_properties(${CMH_MODULE_NAME} PROPERTIES
       RELEASE_OUTPUT_NAME ${CMH_MODULE_NAME})
   endif()
-  
+
   if(CMH_IS_LIBRARY)
     # Set the interface properties for this module to their default empty values.
     set(${CMH_MODULE_NAME}_COMPILE_DEFINITIONS "")
     set(${CMH_MODULE_NAME}_INCLUDE_DIRECTORIES "")
     set(${CMH_MODULE_NAME}_LINK_LIBRARIES "")
-    
+
     # Get the current interface properties for this module.
     get_target_property(CURRENT_COMPILE_DEFINITIONS
       ${CMH_MODULE_NAME} INTERFACE_COMPILE_DEFINITIONS)
@@ -118,7 +128,7 @@ function(CMH_ADD_MODULE_SUBDIRECTORY)
       ${CMH_MODULE_NAME} INTERFACE_INCLUDE_DIRECTORIES)
     get_target_property(CURRENT_LINK_LIBRARIES
       ${CMH_MODULE_NAME} INTERFACE_LINK_LIBRARIES)
-    
+
     # If any of the current interface properties are valid, set them to be the
     # module's interface properties.
     if(CURRENT_COMPILE_DEFINITIONS)
@@ -130,7 +140,7 @@ function(CMH_ADD_MODULE_SUBDIRECTORY)
     if(CURRENT_LINK_LIBRARIES)
       set(${CMH_MODULE_NAME}_LINK_LIBRARIES ${CURRENT_LINK_LIBRARIES})
     endif()
-    
+
     # Set the prefix for static libraries.
     set(LIBRARY_PREFIX "")
     if(CMAKE_STATIC_LIBRARY_PREFIX)
@@ -141,13 +151,13 @@ function(CMH_ADD_MODULE_SUBDIRECTORY)
     if(CMAKE_STATIC_LIBRARY_SUFFIX)
       set(LIBRARY_EXTENSION ${CMAKE_STATIC_LIBRARY_SUFFIX})
     endif()
-    
+
     # Append the path to the debug and release version of this module's library.
     list(APPEND
       ${CMH_MODULE_NAME}_LINK_LIBRARIES
       optimized ${${CMH_MODULE_NAME}_RELEASE_LIB_DIR}/${LIBRARY_PREFIX}${CMH_MODULE_NAME}${LIBRARY_EXTENSION}
       debug ${${CMH_MODULE_NAME}_DEBUG_LIB_DIR}/${LIBRARY_PREFIX}${CMH_MODULE_NAME_DEBUG}${LIBRARY_EXTENSION})
-    
+
     # Set the inferface properties to have scope outside of this function.
     set(${CMH_MODULE_NAME}_COMPILE_DEFINITIONS ${${CMH_MODULE_NAME}_COMPILE_DEFINITIONS} PARENT_SCOPE)
     set(${CMH_MODULE_NAME}_INCLUDE_DIRECTORIES ${${CMH_MODULE_NAME}_INCLUDE_DIRECTORIES} PARENT_SCOPE)
@@ -201,6 +211,7 @@ macro(CMH_TARGET_COMPILE_DEFINITIONS)
   # Get the target type.
   CMH_GET_TARGET_TYPE()
 
+  # Set this target's compile definitions.
   if(CMH_IS_LIBRARY OR CMH_IS_EXECUTABLE)
     target_compile_definitions(${CMH_MODULE_NAME} PUBLIC ${ARGN})
   else()
@@ -212,6 +223,7 @@ macro(CMH_TARGET_INCLUDE_DIRECTORIES)
   # Get the target type.
   CMH_GET_TARGET_TYPE()
 
+  # Set this target's include directories.
   if(CMH_IS_LIBRARY OR CMH_IS_EXECUTABLE)
     target_include_directories(${CMH_MODULE_NAME} PUBLIC ${ARGN})
   else()
@@ -223,6 +235,7 @@ macro(CMH_TARGET_LINK_LIBRARIES)
   # Get the target type.
   CMH_GET_TARGET_TYPE()
 
+  # Set this target's link libraries.
   if(CMH_IS_LIBRARY OR CMH_IS_EXECUTABLE)
     target_link_libraries(${CMH_MODULE_NAME} PUBLIC ${ARGN})
   else()
@@ -235,7 +248,7 @@ endmacro(CMH_TARGET_LINK_LIBRARIES)
 macro(CMH_LINK_MODULES)
   # Get the type of the target (library, executable, etc).
   CMH_GET_TARGET_TYPE()
-  
+
   # If this module is an executable, link it to the libraries of its dependencies.
   if(CMH_IS_EXECUTABLE)
     foreach(DEPENDENCY ${${CMH_MODULE_NAME}_MODULE_DEPENDENCIES})
@@ -261,11 +274,14 @@ macro(CMH_GET_MODULE_NAME OUTPUT_NAME MODULE_CONFIG_PATH)
   get_filename_component(${OUTPUT_NAME} ${${OUTPUT_NAME}} NAME_WE)
 endmacro(CMH_GET_MODULE_NAME)
 
-macro(LIST_CONTAINS var value)
-  set(${var} FALSE)
-  foreach(value2 ${ARGN})
-    if(${value} STREQUAL ${value2})
-      set(${var} TRUE)
+# This macro returns true if a provided list contains a certain query value.
+# Specifically, the name provided to OUTPUT_NAME will be set to TRUE if the
+# value in QUERY_VALUE is found in the list provided as the final argument.
+macro(LIST_CONTAINS OUTPUT_NAME QUERY_VALUE)
+  set(${OUTPUT_NAME} FALSE)
+  foreach(VALUE ${ARGN})
+    if(${QUERY_VALUE} STREQUAL ${VALUE})
+      set(${OUTPUT_NAME} TRUE)
     endif()
   endforeach()
 endmacro(LIST_CONTAINS)
