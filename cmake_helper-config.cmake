@@ -163,10 +163,54 @@ function(CMH_ADD_MODULE_SUBDIRECTORY)
 endfunction(CMH_ADD_MODULE_SUBDIRECTORY)
 
 macro(CMH_ADD_HEADER_MODULE)
+  source_group(${CMH_MODULE_NAME} FILES ${ARGN})
   add_custom_target(${CMH_MODULE_NAME}_custom_target SOURCES ${ARGN})
   set_target_properties(${CMH_MODULE_NAME}_custom_target PROPERTIES PROJECT_LABEL ${CMH_MODULE_NAME})
   add_library(${CMH_MODULE_NAME} INTERFACE)
 endmacro(CMH_ADD_HEADER_MODULE)
+
+macro(CMH_ADD_LIBRARY_MODULE)
+  source_group(${CMH_MODULE_NAME} FILES ${ARGN})
+  add_library(${CMH_MODULE_NAME} ${ARGN})
+endmacro(CMH_ADD_LIBRARY_MODULE)
+
+macro(CMH_ADD_EXECUTABLE_MODULE)
+  source_group(${CMH_MODULE_NAME} FILES ${ARGN})
+  add_executable(${CMH_MODULE_NAME} ${ARGN})
+endmacro(CMH_ADD_EXECUTABLE_MODULE)
+
+macro(CMH_TARGET_COMPILE_DEFINITIONS)
+  # Get the target type.
+  CMH_GET_TARGET_TYPE()
+
+  if(CMH_IS_LIBRARY OR CMH_IS_EXECUTABLE)
+    target_compile_definitions(${CMH_MODULE_NAME} PUBLIC ${ARGN})
+  else()
+    target_compile_definitions(${CMH_MODULE_NAME} INTERFACE ${ARGN})
+  endif()
+endmacro(CMH_TARGET_COMPILE_DEFINITIONS)
+
+macro(CMH_TARGET_INCLUDE_DIRECTORIES)
+  # Get the target type.
+  CMH_GET_TARGET_TYPE()
+
+  if(CMH_IS_LIBRARY OR CMH_IS_EXECUTABLE)
+    target_include_directories(${CMH_MODULE_NAME} PUBLIC ${ARGN})
+  else()
+    target_include_directories(${CMH_MODULE_NAME} INTERFACE ${ARGN})
+  endif()
+endmacro(CMH_TARGET_INCLUDE_DIRECTORIES)
+
+macro(CMH_TARGET_LINK_LIBRARIES)
+  # Get the target type.
+  CMH_GET_TARGET_TYPE()
+
+  if(CMH_IS_LIBRARY OR CMH_IS_EXECUTABLE)
+    target_link_libraries(${CMH_MODULE_NAME} PUBLIC ${ARGN})
+  else()
+    target_link_libraries(${CMH_MODULE_NAME} INTERFACE ${ARGN})
+  endif()
+endmacro(CMH_TARGET_LINK_LIBRARIES)
 
 # This macro exists to enable functionality for commands that must be run in
 # the same subdirectory as the given target, ex. target_link_libraries().
@@ -226,6 +270,8 @@ macro(CMH_FIND_BOOST_HELPER)
       # If the Boost include directory is not set, make sure that we print the message below only once.
       if(NOT CMH_FIND_BOOST_HELPER_MESSAGE)
         set(CMH_FIND_BOOST_HELPER_MESSAGE TRUE)
+        # Set the variable in the parent scope as well as this macro is typically called from within
+        # the cmh_add_module_subdirectory() function which defines its own scope.
         set(CMH_FIND_BOOST_HELPER_MESSAGE TRUE PARENT_SCOPE)
         message("If necessary, provide hints for the location of the Boost root and library directories in CMH_BOOST_ROOT_DIR and CMH_BOOST_LIBRARY_DIR.")
       endif()
