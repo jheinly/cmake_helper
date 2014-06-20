@@ -48,6 +48,9 @@ function(CMH_ADD_MODULE_SUBDIRECTORY)
   # Include the CMakeLists.txt file from the current directory.
   add_subdirectory(${CMAKE_CURRENT_LIST_DIR} ${CMAKE_BINARY_DIR}/${CMH_MODULE_NAME})
   
+  # Help find Boost.
+  CMH_FIND_BOOST_HELPER()
+  
   # Get the target type after the subdirectory has been processed.
   CMH_GET_TARGET_TYPE()
   
@@ -214,3 +217,29 @@ macro(CMH_GET_TARGET_TYPE)
   LIST_CONTAINS(CMH_IS_EXECUTABLE ${CMH_TARGET_TYPE} "EXECUTABLE")
   LIST_CONTAINS(CMH_IS_HEADER_MODULE ${CMH_TARGET_TYPE} "INTERFACE_LIBRARY")
 endmacro(CMH_GET_TARGET_TYPE)
+
+macro(CMH_FIND_BOOST_HELPER)
+  # Test to see if Boost has been used in a find_package() statement.
+  if(DEFINED Boost_DIR)
+    # Test to see if the Boost include directory has been located or set.
+    if(NOT Boost_INCLUDE_DIR)
+      # If the Boost include directory is not set, make sure that we print the message below only once.
+      if(NOT CMH_FIND_BOOST_HELPER_MESSAGE)
+        set(CMH_FIND_BOOST_HELPER_MESSAGE TRUE)
+        set(CMH_FIND_BOOST_HELPER_MESSAGE TRUE PARENT_SCOPE)
+        message("If necessary, provide hints for the location of the Boost root and library directories in CMH_BOOST_ROOT_DIR and CMH_BOOST_LIBRARY_DIR.")
+      endif()
+    endif()
+    # Prompt the user for hints as to where the Boost root and library directories are.
+    set(CMH_BOOST_ROOT_DIR "" CACHE PATH "Hint as to where to find the Boost root directory.")
+    set(CMH_BOOST_LIBRARY_DIR "" CACHE PATH "Hint as to where to find the Boost library directory.")
+    # If the Boost root and library directories have not already been set to valid values,
+    # overwrite them with the values provided above.
+    if(NOT BOOST_ROOT OR NOT EXISTS ${BOOST_ROOT})
+      set(BOOST_ROOT ${CMH_BOOST_ROOT_DIR} CACHE INTERNAL "Hint for Boost root directory location.")
+    endif()
+    if(NOT BOOST_LIBRARYDIR OR NOT EXISTS ${BOOST_LIBRARYDIR})
+      set(BOOST_LIBRARYDIR ${CMH_BOOST_LIBRARY_DIR} CACHE INTERNAL "Hint for Boost library directory location.")
+    endif()
+  endif()
+endmacro(CMH_FIND_BOOST_HELPER)
