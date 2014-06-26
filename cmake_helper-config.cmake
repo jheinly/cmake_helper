@@ -3,6 +3,14 @@ cmake_minimum_required(VERSION 3.0)
 # Include the following macro from the CMake Modules folder.
 include(CMakeParseArguments)
 
+# If this is Mac OS, override the default compiler (which is probably one
+# provided by XCode).
+if(APPLE)
+  message(STATUS "Overriding default compiler...")
+  set(CMAKE_C_COMPILER /usr/bin/gcc)
+  set(CMAKE_CXX_COMPILER /usr/bin/g++)
+endif()
+
 # If the build type (Debug/Release) has not been set for a UNIX-style system,
 # go ahead and set it to Release. This helps avoid issues for configurations that
 # explicitly try to see if the current build type is either Debug or Release.
