@@ -75,6 +75,7 @@ function(CMH_ADD_MODULE_SUBDIRECTORY)
   # Get the target type after the subdirectory has been processed.
   CMH_GET_TARGET_TYPE()
 
+  # Set the name of this module when compiling in Debug mode.
   set(CMH_MODULE_NAME_DEBUG ${CMH_MODULE_NAME}_d)
 
   if(CMH_IS_LIBRARY)
@@ -123,7 +124,7 @@ function(CMH_ADD_MODULE_SUBDIRECTORY)
       RELEASE_OUTPUT_NAME ${CMH_MODULE_NAME})
   endif()
 
-  if(CMH_IS_LIBRARY)
+  if(CMH_IS_LIBRARY OR CMH_IS_HEADER_MODULE)
     # Set the interface properties for this module to their default empty values.
     set(${CMH_MODULE_NAME}_COMPILE_DEFINITIONS "")
     set(${CMH_MODULE_NAME}_INCLUDE_DIRECTORIES "")
@@ -149,22 +150,24 @@ function(CMH_ADD_MODULE_SUBDIRECTORY)
       set(${CMH_MODULE_NAME}_LINK_LIBRARIES ${CURRENT_LINK_LIBRARIES})
     endif()
 
-    # Set the prefix for static libraries.
-    set(LIBRARY_PREFIX "")
-    if(CMAKE_STATIC_LIBRARY_PREFIX)
-      set(LIBRARY_PREFIX ${CMAKE_STATIC_LIBRARY_PREFIX})
-    endif()
-    # Set the extension for static libraries.
-    set(LIBRARY_EXTENSION "")
-    if(CMAKE_STATIC_LIBRARY_SUFFIX)
-      set(LIBRARY_EXTENSION ${CMAKE_STATIC_LIBRARY_SUFFIX})
-    endif()
+    if(CMH_IS_LIBRARY)
+      # Set the prefix for static libraries.
+      set(LIBRARY_PREFIX "")
+      if(CMAKE_STATIC_LIBRARY_PREFIX)
+        set(LIBRARY_PREFIX ${CMAKE_STATIC_LIBRARY_PREFIX})
+      endif()
+      # Set the extension for static libraries.
+      set(LIBRARY_EXTENSION "")
+      if(CMAKE_STATIC_LIBRARY_SUFFIX)
+        set(LIBRARY_EXTENSION ${CMAKE_STATIC_LIBRARY_SUFFIX})
+      endif()
 
-    # Append the path to the debug and release version of this module's library.
-    list(APPEND
-      ${CMH_MODULE_NAME}_LINK_LIBRARIES
-      optimized ${${CMH_MODULE_NAME}_RELEASE_LIB_DIR}/${LIBRARY_PREFIX}${CMH_MODULE_NAME}${LIBRARY_EXTENSION}
-      debug ${${CMH_MODULE_NAME}_DEBUG_LIB_DIR}/${LIBRARY_PREFIX}${CMH_MODULE_NAME_DEBUG}${LIBRARY_EXTENSION})
+      # Append the path to the debug and release version of this module's library.
+      list(APPEND
+        ${CMH_MODULE_NAME}_LINK_LIBRARIES
+        optimized ${${CMH_MODULE_NAME}_RELEASE_LIB_DIR}/${LIBRARY_PREFIX}${CMH_MODULE_NAME}${LIBRARY_EXTENSION}
+        debug ${${CMH_MODULE_NAME}_DEBUG_LIB_DIR}/${LIBRARY_PREFIX}${CMH_MODULE_NAME_DEBUG}${LIBRARY_EXTENSION})
+    endif()
 
     # Set the inferface properties to have scope outside of this function.
     set(${CMH_MODULE_NAME}_COMPILE_DEFINITIONS ${${CMH_MODULE_NAME}_COMPILE_DEFINITIONS} PARENT_SCOPE)
