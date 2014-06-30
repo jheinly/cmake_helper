@@ -71,6 +71,9 @@ function(CMH_ADD_MODULE_SUBDIRECTORY)
 
   # Help find Boost.
   CMH_FIND_BOOST_HELPER()
+  
+  # Help find the CUDA SDK.
+  CMH_FIND_CUDA_SDK_HELPER()
 
   # Get the target type after the subdirectory has been processed.
   CMH_GET_TARGET_TYPE()
@@ -186,37 +189,37 @@ function(CMH_ADD_MODULE_SUBDIRECTORY)
   endforeach()
 endfunction(CMH_ADD_MODULE_SUBDIRECTORY)
 
-macro(CMH_ADD_HEADER_MODULE)
-  CMAKE_PARSE_ARGUMENTS(CMH_HEADER_MODULE "" "FOLDER_NAME" "" ${ARGN})
-  if(CMH_HEADER_MODULE_FOLDER_NAME)
-    source_group(${CMH_HEADER_MODULE_FOLDER_NAME} FILES ${CMH_HEADER_MODULE_UNPARSED_ARGUMENTS})
+macro(CMH_ADD_MODULE_HELPER)
+  CMAKE_PARSE_ARGUMENTS(CMH_MODULE "" "FOLDER_NAME" "" ${ARGN})
+  if(CMH_MODULE_FOLDER_NAME)
+    source_group(${CMH_MODULE_FOLDER_NAME} FILES ${CMH_MODULE_UNPARSED_ARGUMENTS})
   else()
-    source_group(${CMH_MODULE_NAME} FILES ${CMH_HEADER_MODULE_UNPARSED_ARGUMENTS})
+    source_group(${CMH_MODULE_NAME} FILES ${CMH_MODULE_UNPARSED_ARGUMENTS})
   endif()
-  add_custom_target(${CMH_MODULE_NAME}_custom_target SOURCES ${CMH_HEADER_MODULE_UNPARSED_ARGUMENTS})
+endmacro(CMH_ADD_MODULE_HELPER)
+
+macro(CMH_ADD_HEADER_MODULE)
+  CMH_ADD_MODULE_HELPER()
+  add_custom_target(${CMH_MODULE_NAME}_custom_target SOURCES ${CMH_MODULE_UNPARSED_ARGUMENTS})
   set_target_properties(${CMH_MODULE_NAME}_custom_target PROPERTIES PROJECT_LABEL ${CMH_MODULE_NAME})
   add_library(${CMH_MODULE_NAME} INTERFACE)
 endmacro(CMH_ADD_HEADER_MODULE)
 
 macro(CMH_ADD_LIBRARY_MODULE)
-  CMAKE_PARSE_ARGUMENTS(CMH_LIBRARY_MODULE "" "FOLDER_NAME" "" ${ARGN})
-  if(CMH_LIBRARY_MODULE_FOLDER_NAME)
-    source_group(${CMH_LIBRARY_MODULE_FOLDER_NAME} FILES ${CMH_LIBRARY_MODULE_UNPARSED_ARGUMENTS})
-  else()
-    source_group(${CMH_MODULE_NAME} FILES ${CMH_LIBRARY_MODULE_UNPARSED_ARGUMENTS})
-  endif()
-  add_library(${CMH_MODULE_NAME} ${CMH_LIBRARY_MODULE_UNPARSED_ARGUMENTS})
+  CMH_ADD_MODULE_HELPER()
+  add_library(${CMH_MODULE_NAME} ${CMH_MODULE_UNPARSED_ARGUMENTS})
 endmacro(CMH_ADD_LIBRARY_MODULE)
 
 macro(CMH_ADD_EXECUTABLE_MODULE)
-  CMAKE_PARSE_ARGUMENTS(CMH_EXECUTABLE_MODULE "" "FOLDER_NAME" "" ${ARGN})
-  if(CMH_EXECUTABLE_MODULE_FOLDER_NAME)
-    source_group(${CMH_EXECUTABLE_MODULE_FOLDER_NAME} FILES ${CMH_EXECUTABLE_MODULE_UNPARSED_ARGUMENTS})
-  else()
-    source_group(${CMH_MODULE_NAME} FILES ${CMH_EXECUTABLE_MODULE_UNPARSED_ARGUMENTS})
-  endif()
-  add_executable(${CMH_MODULE_NAME} ${CMH_EXECUTABLE_MODULE_UNPARSED_ARGUMENTS})
+  CMH_ADD_MODULE_HELPER()
+  add_executable(${CMH_MODULE_NAME} ${CMH_MODULE_UNPARSED_ARGUMENTS})
 endmacro(CMH_ADD_EXECUTABLE_MODULE)
+
+macro(CMH_ADD_CUDA_LIBRARY_MODULE)
+  CMH_ADD_MODULE_HELPER()
+  CMH_GET_CUDA_COMPILER_DEFINITIONS()
+  # TODO: set the compile definitions and include directories for this module
+endmacro(CMH_ADD_CUDA_LIBRARY_MODULE)
 
 macro(CMH_TARGET_COMPILE_DEFINITIONS)
   # Get the target type.
@@ -334,3 +337,66 @@ macro(CMH_FIND_BOOST_HELPER)
     endif()
   endif()
 endmacro(CMH_FIND_BOOST_HELPER)
+
+# This macro requests the user to specify the default compute capability of their GPU. Given
+# this compute capability, this macro will create the correct compiler definitions for this
+# capability and store them in ${CMH_CUDA_COMPILER_DEFINITIONS} so that they can be later
+# passed to the CUDA compiler.
+macro(CMH_GET_CUDA_COMPILER_DEFINITIONS)
+  if(NOT CMH_CUDA_COMPUTE_CAPABILITY)
+    set(CMH_CUDA_COMPUTE_CAPABILITY "1.0" CACHE STRING "CUDA compute capability of target GPU device.")
+    set_property(CACHE CMH_CUDA_COMPUTE_CAPABILITY PROPERTY STRINGS 1.0 1.1 1.2 1.3 2.0 2.1 3.0 3.5 5.0)
+  endif()
+  string(REPLACE "." "" CAPABILITY ${CMH_CUDA_COMPUTE_CAPABILITY})
+  if(CAPABILITY STREQUAL "21")
+    set(CMH_CUDA_COMPILER_DEFINITIONS "-arch=compute_20 -code=sm_21,compute_20")
+  else()
+    set(CMH_CUDA_COMPILER_DEFINITIONS "-arch=compute_${CAPABILITY} -code=sm_${CAPABILITY},compute_${CAPABILITY}")
+  endif()
+  set(CMH_CUDA_COMPILER_DEFINITIONS "${CMH_CUDA_COMPILER_DEFINITIONS} --ptxas-options=-v")
+endmacro(CMH_GET_CUDA_COMPILER_DEFINITIONS)
+
+# This macro attempts to automatically set the path of the CUDA SDK based on
+# the version of the CUDA Toolkit that was found.
+macro(CMH_FIND_CUDA_SDK_HELPER)
+  if(CUDA_TOOLKIT_ROOT_DIR AND CUDA_VERSION)
+    # CUDA was found.
+
+    # Initially set that we don't have to search for the SDK.
+    set(CMH_FIND_CUDA_SDK FALSE)
+
+    # If the CUDA SDK path is null, or it seems to be for the wrong version,
+    # set that we have to try to find the SDK.
+    if(NOT CUDA_SDK_ROOT_DIR)
+      set(CMH_FIND_CUDA_SDK TRUE)
+    else()
+      if(WIN32)
+        string(FIND ${CUDA_SDK_ROOT_DIR} "v${CUDA_VERSION}" CMH_FOUND_POSITION)
+        if(CMH_FOUND_POSITION EQUAL -1)
+          set(CMH_FIND_CUDA_SDK TRUE)
+        endif()
+      elseif(APPLE)
+        string(FIND ${CUDA_SDK_ROOT_DIR} "CUDA-${CUDA_VERSION}" CMH_FOUND_POSITION)
+        if(CMH_FOUND_POSITION EQUAL -1)
+          set(CMH_FIND_CUDA_SDK TRUE)
+        endif()
+      endif()
+    endif()
+
+    # Attempt to search for the CUDA SDK if we need to.
+    if(CMH_FIND_CUDA_SDK)
+      if(WIN32)
+        set(CUDA_SDK_PATH_GUESS "C:/ProgramData/NVIDIA Corporation/CUDA Samples/v${CUDA_VERSION}")
+      elseif(APPLE)
+        set(CUDA_SDK_PATH_GUESS "/Applications/Xcode.app/Contents/Developer/NVIDIA/CUDA-${CUDA_VERSION}/samples")
+      endif()
+
+      if(CUDA_SDK_PATH_GUESS)
+        if(IS_DIRECTORY ${CUDA_SDK_PATH_GUESS})
+          set(CUDA_SDK_ROOT_DIR ${CUDA_SDK_PATH_GUESS} CACHE PATH "Path to CUDA SDK directory." FORCE)
+          message("Found CUDA SDK: ${CUDA_SDK_ROOT_DIR}")
+        endif()
+      endif()
+    endif()
+  endif()
+endmacro(CMH_FIND_CUDA_SDK_HELPER)
