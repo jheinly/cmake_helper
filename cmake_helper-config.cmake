@@ -141,6 +141,9 @@ function(CMH_ADD_MODULE_SUBDIRECTORY)
     get_target_property(CURRENT_LINK_LIBRARIES
       ${CMH_MODULE_NAME} INTERFACE_LINK_LIBRARIES)
 
+    # TODO: test to see if the above target properties can correctly extracted
+    #       from a CUDA target
+
     # If any of the current interface properties are valid, set them to be the
     # module's interface properties.
     if(CURRENT_COMPILE_DEFINITIONS)
@@ -181,6 +184,7 @@ function(CMH_ADD_MODULE_SUBDIRECTORY)
   # Set this module to have the compile definitions and include directories
   # of its dependencies after we have already saved a copy above of the
   # definitions and directories provided by the user.
+  # TODO: this has already been done if this is a CUDA target
   foreach(DEPENDENCY ${${CMH_MODULE_NAME}_MODULE_DEPENDENCIES})
     set_property(TARGET ${CMH_MODULE_NAME} APPEND PROPERTY
       COMPILE_DEFINITIONS ${${DEPENDENCY}_COMPILE_DEFINITIONS})
@@ -218,9 +222,15 @@ endmacro(CMH_ADD_EXECUTABLE_MODULE)
 
 macro(CMH_ADD_CUDA_LIBRARY_MODULE)
   CMH_ADD_MODULE_HELPER(CMH_MODULE_SOURCE_FILES ${ARGN})
-  CMH_GET_CUDA_COMPILER_DEFINITIONS()
-  # TODO: set the compile definitions and include directories for this module
+  CMH_PREPARE_CUDA_COMPILER(CMH_CUDA_COMPILER_DEFINITIONS)
+  cuda_add_library(${CMH_MODULE_NAME} ${CMH_MODULE_SOURCE_FILES} OPTIONS ${CMH_CUDA_COMPILER_DEFINITIONS})
 endmacro(CMH_ADD_CUDA_LIBRARY_MODULE)
+
+macro(CMH_ADD_CUDA_EXECUTABLE_MODULE)
+  CMH_ADD_MODULE_HELPER(CMH_MODULE_SOURCE_FILES ${ARGN})
+  CMH_PREPARE_CUDA_COMPILER(CMH_CUDA_COMPILER_DEFINITIONS)
+  cuda_add_executable(${CMH_MODULE_NAME} ${CMH_MODULE_SOURCE_FILES} OPTIONS ${CMH_CUDA_COMPILER_DEFINITIONS})
+endmacro(CMH_ADD_CUDA_EXECUTABLE_MODULE)
 
 macro(CMH_TARGET_COMPILE_DEFINITIONS)
   # Get the target type.
@@ -341,21 +351,27 @@ endmacro(CMH_FIND_BOOST_HELPER)
 
 # This macro requests the user to specify the default compute capability of their GPU. Given
 # this compute capability, this macro will create the correct compiler definitions for this
-# capability and store them in ${CMH_CUDA_COMPILER_DEFINITIONS} so that they can be later
-# passed to the CUDA compiler.
-macro(CMH_GET_CUDA_COMPILER_DEFINITIONS)
+# capability and store them in the provided ${OUTPUT_NAME} so that they can be later passed
+# to the CUDA compiler. Additionally, this macro will setup the proper include directories
+# and compile definitions for the dependencies of this module.
+macro(CMH_PREPARE_CUDA_COMPILER OUTPUT_NAME)
   if(NOT CMH_CUDA_COMPUTE_CAPABILITY)
     set(CMH_CUDA_COMPUTE_CAPABILITY "1.0" CACHE STRING "CUDA compute capability of target GPU device.")
     set_property(CACHE CMH_CUDA_COMPUTE_CAPABILITY PROPERTY STRINGS 1.0 1.1 1.2 1.3 2.0 2.1 3.0 3.5 5.0)
   endif()
   string(REPLACE "." "" CAPABILITY ${CMH_CUDA_COMPUTE_CAPABILITY})
   if(CAPABILITY STREQUAL "21")
-    set(CMH_CUDA_COMPILER_DEFINITIONS "-arch=compute_20 -code=sm_21,compute_20")
+    set(${OUTPUT_NAME} "-arch=compute_20 -code=sm_21,compute_20")
   else()
-    set(CMH_CUDA_COMPILER_DEFINITIONS "-arch=compute_${CAPABILITY} -code=sm_${CAPABILITY},compute_${CAPABILITY}")
+    set(${OUTPUT_NAME} "-arch=compute_${CAPABILITY} -code=sm_${CAPABILITY},compute_${CAPABILITY}")
   endif()
-  set(CMH_CUDA_COMPILER_DEFINITIONS "${CMH_CUDA_COMPILER_DEFINITIONS} --ptxas-options=-v")
-endmacro(CMH_GET_CUDA_COMPILER_DEFINITIONS)
+  # TODO: test to see if list(APPEND) will work here instead of using set() to manually append
+  set(${OUTPUT_NAME} "${${OUTPUT_NAME}} --ptxas-options=-v")
+  foreach(DEPENDENCY ${${CMH_MODULE_NAME}_MODULE_DEPENDENCIES})
+    set(${OUTPUT_NAME} "${${OUTPUT_NAME}} ${${DEPENDENCY}_COMPILE_DEFINITIONS}")
+    cuda_include_directories(${${DEPENDENCY}_INCLUDE_DIRECTORIES})
+  endforeach()
+endmacro(CMH_PREPARE_CUDA_COMPILER)
 
 # This macro attempts to automatically set the path of the CUDA SDK based on
 # the version of the CUDA Toolkit that was found.
