@@ -143,6 +143,8 @@ function(CMH_ADD_MODULE_SUBDIRECTORY)
 
     # TODO: test to see if the above target properties can correctly extracted
     #       from a CUDA target
+    # TODO: test to see if CUDA-specific properties are extracted that should
+    #       not be passed to dependencies
 
     # If any of the current interface properties are valid, set them to be the
     # module's interface properties.
@@ -184,7 +186,8 @@ function(CMH_ADD_MODULE_SUBDIRECTORY)
   # Set this module to have the compile definitions and include directories
   # of its dependencies after we have already saved a copy above of the
   # definitions and directories provided by the user.
-  # TODO: this has already been done if this is a CUDA target
+  # TODO: this has already been done if this is a CUDA target, use CMH_CUDA_MODULE_NAMES
+  #       to determine if the current module is a CUDA module
   foreach(DEPENDENCY ${${CMH_MODULE_NAME}_MODULE_DEPENDENCIES})
     set_property(TARGET ${CMH_MODULE_NAME} APPEND PROPERTY
       COMPILE_DEFINITIONS ${${DEPENDENCY}_COMPILE_DEFINITIONS})
@@ -365,12 +368,28 @@ macro(CMH_PREPARE_CUDA_COMPILER OUTPUT_NAME)
   else()
     set(${OUTPUT_NAME} "-arch=compute_${CAPABILITY} -code=sm_${CAPABILITY},compute_${CAPABILITY}")
   endif()
-  # TODO: test to see if list(APPEND) will work here instead of using set() to manually append
+
+  # TODO: test to see if list(APPEND) will work in the following
+  #       statements instead of using set() to manually append
+
+  # Tell the CUDA compiler to provide verbose output, specifically so that
+  # the register and shared memory usage is printed when compiling.
   set(${OUTPUT_NAME} "${${OUTPUT_NAME}} --ptxas-options=-v")
+
+  # Iterate through the dependencies of this module and add their include directories
+  # and compile definitions as these must be specified before creating the CUDA target.
   foreach(DEPENDENCY ${${CMH_MODULE_NAME}_MODULE_DEPENDENCIES})
     set(${OUTPUT_NAME} "${${OUTPUT_NAME}} ${${DEPENDENCY}_COMPILE_DEFINITIONS}")
     cuda_include_directories(${${DEPENDENCY}_INCLUDE_DIRECTORIES})
   endforeach()
+
+  # Keep a list of the current modules that are actually CUDA targets.
+  if(NOT CMH_CUDA_MODULE_NAMES)
+    set(CMH_CUDA_MODULE_NAMES ${CMH_MODULE_NAME})
+  else()
+    list(APPEND CMH_CUDA_MODULE_NAMES ${CMH_MODULE_NAME})
+  endif()
+  set(CMH_CUDA_MODULE_NAMES ${CMH_CUDA_MODULE_NAMES} PARENT_SCOPE)
 endmacro(CMH_PREPARE_CUDA_COMPILER)
 
 # This macro attempts to automatically set the path of the CUDA SDK based on
