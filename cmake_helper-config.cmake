@@ -1,3 +1,6 @@
+# TODO: add test folder which contains CMake/C++ code to test the functionality of this package
+
+# CMake 3.0 is required as it added the add_library() INTERFACE option.
 cmake_minimum_required(VERSION 3.0)
 
 # Include the following macro from the CMake Modules folder.
@@ -196,6 +199,7 @@ function(CMH_ADD_MODULE_SUBDIRECTORY)
   endforeach()
 endfunction(CMH_ADD_MODULE_SUBDIRECTORY)
 
+# This macro parses the arguments passed to a cmh_add_*_module() call.
 macro(CMH_ADD_MODULE_HELPER OUTPUT_NAME)
   CMAKE_PARSE_ARGUMENTS(CMH_MODULE "" "FOLDER_NAME" "" ${ARGN})
   if(CMH_MODULE_FOLDER_NAME)
@@ -206,6 +210,7 @@ macro(CMH_ADD_MODULE_HELPER OUTPUT_NAME)
   set(${OUTPUT_NAME} ${CMH_MODULE_UNPARSED_ARGUMENTS})
 endmacro(CMH_ADD_MODULE_HELPER)
 
+# Convience macro to create a header module.
 macro(CMH_ADD_HEADER_MODULE)
   CMH_ADD_MODULE_HELPER(CMH_MODULE_SOURCE_FILES ${ARGN})
   add_custom_target(${CMH_MODULE_NAME}_custom_target SOURCES ${CMH_MODULE_SOURCE_FILES})
@@ -213,28 +218,33 @@ macro(CMH_ADD_HEADER_MODULE)
   add_library(${CMH_MODULE_NAME} INTERFACE)
 endmacro(CMH_ADD_HEADER_MODULE)
 
+# Convience macro to create a library module.
 macro(CMH_ADD_LIBRARY_MODULE)
   CMH_ADD_MODULE_HELPER(CMH_MODULE_SOURCE_FILES ${ARGN})
   add_library(${CMH_MODULE_NAME} ${CMH_MODULE_SOURCE_FILES})
 endmacro(CMH_ADD_LIBRARY_MODULE)
 
+# Convience macro to create an executable module.
 macro(CMH_ADD_EXECUTABLE_MODULE)
   CMH_ADD_MODULE_HELPER(CMH_MODULE_SOURCE_FILES ${ARGN})
   add_executable(${CMH_MODULE_NAME} ${CMH_MODULE_SOURCE_FILES})
 endmacro(CMH_ADD_EXECUTABLE_MODULE)
 
+# Convience macro to create a CUDA library module.
 macro(CMH_ADD_CUDA_LIBRARY_MODULE)
   CMH_ADD_MODULE_HELPER(CMH_MODULE_SOURCE_FILES ${ARGN})
   CMH_PREPARE_CUDA_COMPILER(CMH_CUDA_COMPILER_DEFINITIONS)
   cuda_add_library(${CMH_MODULE_NAME} ${CMH_MODULE_SOURCE_FILES} OPTIONS ${CMH_CUDA_COMPILER_DEFINITIONS})
 endmacro(CMH_ADD_CUDA_LIBRARY_MODULE)
 
+# Convience macro to create a CUDA executable module.
 macro(CMH_ADD_CUDA_EXECUTABLE_MODULE)
   CMH_ADD_MODULE_HELPER(CMH_MODULE_SOURCE_FILES ${ARGN})
   CMH_PREPARE_CUDA_COMPILER(CMH_CUDA_COMPILER_DEFINITIONS)
   cuda_add_executable(${CMH_MODULE_NAME} ${CMH_MODULE_SOURCE_FILES} OPTIONS ${CMH_CUDA_COMPILER_DEFINITIONS})
 endmacro(CMH_ADD_CUDA_EXECUTABLE_MODULE)
 
+# Convience macro to set the compile definitions of a module.
 macro(CMH_TARGET_COMPILE_DEFINITIONS)
   # Get the target type.
   CMH_GET_TARGET_TYPE()
@@ -247,6 +257,7 @@ macro(CMH_TARGET_COMPILE_DEFINITIONS)
   endif()
 endmacro(CMH_TARGET_COMPILE_DEFINITIONS)
 
+# Convience macro to set the include directories of a module.
 macro(CMH_TARGET_INCLUDE_DIRECTORIES)
   # Get the target type.
   CMH_GET_TARGET_TYPE()
@@ -259,6 +270,7 @@ macro(CMH_TARGET_INCLUDE_DIRECTORIES)
   endif()
 endmacro(CMH_TARGET_INCLUDE_DIRECTORIES)
 
+# Convience macro to set the link libraries of a module.
 macro(CMH_TARGET_LINK_LIBRARIES)
   # Get the target type.
   CMH_GET_TARGET_TYPE()
@@ -314,6 +326,8 @@ macro(CMH_LIST_CONTAINS OUTPUT_NAME QUERY_VALUE)
   endforeach()
 endmacro(CMH_LIST_CONTAINS)
 
+# This macro will only append to the provided list if the given values in ${ARGN}
+# do not already exist within the list.
 macro(CMH_LIST_APPEND_IF_UNIQUE LIST_NAME)
   foreach(VALUE_TO_APPEND ${ARGN})
     CMH_LIST_CONTAINS(ALREADY_EXISTS ${VALUE_TO_APPEND} ${${LIST_NAME}})
@@ -323,6 +337,7 @@ macro(CMH_LIST_APPEND_IF_UNIQUE LIST_NAME)
   endforeach()
 endmacro(CMH_LIST_APPEND_IF_UNIQUE)
 
+# This macro will determine the type of current module.
 macro(CMH_GET_TARGET_TYPE)
   # Get the type of the target (library, executable, etc).
   get_target_property(CMH_TARGET_TYPE ${CMH_MODULE_NAME} TYPE)
@@ -333,6 +348,7 @@ macro(CMH_GET_TARGET_TYPE)
   CMH_LIST_CONTAINS(CMH_IS_HEADER_MODULE ${CMH_TARGET_TYPE} "INTERFACE_LIBRARY")
 endmacro(CMH_GET_TARGET_TYPE)
 
+# This macro helps find the boost include and library directories.
 macro(CMH_FIND_BOOST_HELPER)
   # Test to see if Boost has been used in a find_package() statement.
   if(DEFINED Boost_DIR)
