@@ -34,11 +34,11 @@ macro(CMH_NEW_MODULE_WITH_DEPENDENCIES)
     set(${CMH_MODULE_NAME}_MODULE_DEPENDENCIES "")
     foreach(DEPENDENCY ${ARGN})
       # Build a list of the full names or paths to the dependency modules.
-      list(APPEND ${CMH_MODULE_NAME}_MODULE_DEPENDENCY_PATHS ${DEPENDENCY})
+      CMH_LIST_APPEND_IF_UNIQUE(${CMH_MODULE_NAME}_MODULE_DEPENDENCY_PATHS ${DEPENDENCY})
 
       # Build a list of just the names of the dependency modules.
       CMH_GET_MODULE_NAME(DEPENDENCY_MODULE_NAME ${DEPENDENCY})
-      list(APPEND ${CMH_MODULE_NAME}_MODULE_DEPENDENCIES ${DEPENDENCY_MODULE_NAME})
+      CMH_LIST_APPEND_IF_UNIQUE(${CMH_MODULE_NAME}_MODULE_DEPENDENCIES ${DEPENDENCY_MODULE_NAME})
     endforeach()
 
     # Iterate through the dependency modules and include them.
@@ -54,9 +54,9 @@ macro(CMH_NEW_MODULE_WITH_DEPENDENCIES)
     # including any dependencies.
     CMH_GET_MODULE_NAME(CMH_MODULE_NAME ${CMAKE_CURRENT_LIST_FILE})
 
-    # Set the dependencies of this module to tbe the dependencies of its dependencies.
+    # Set the dependencies of this module to be the dependencies of its dependencies.
     foreach(DEPENDENCY ${${CMH_MODULE_NAME}_MODULE_DEPENDENCIES})
-      list(APPEND
+      CMH_LIST_APPEND_IF_UNIQUE(
         ${CMH_MODULE_NAME}_MODULE_DEPENDENCIES
         ${${DEPENDENCY}_MODULE_DEPENDENCIES})
     endforeach()
@@ -305,23 +305,32 @@ endmacro(CMH_GET_MODULE_NAME)
 # This macro returns true if a provided list contains a certain query value.
 # Specifically, the name provided to OUTPUT_NAME will be set to TRUE if the
 # value in QUERY_VALUE is found in the list provided as the final argument.
-macro(LIST_CONTAINS OUTPUT_NAME QUERY_VALUE)
+macro(CMH_LIST_CONTAINS OUTPUT_NAME QUERY_VALUE)
   set(${OUTPUT_NAME} FALSE)
   foreach(VALUE ${ARGN})
     if(${QUERY_VALUE} STREQUAL ${VALUE})
       set(${OUTPUT_NAME} TRUE)
     endif()
   endforeach()
-endmacro(LIST_CONTAINS)
+endmacro(CMH_LIST_CONTAINS)
+
+macro(CMH_LIST_APPEND_IF_UNIQUE LIST_NAME)
+  foreach(VALUE_TO_APPEND ${ARGN})
+    CMH_LIST_CONTAINS(ALREADY_EXISTS ${VALUE_TO_APPEND} ${${LIST_NAME}})
+    if(NOT ${ALREADY_EXISTS})
+      list(APPEND ${LIST_NAME} ${VALUE_TO_APPEND})
+    endif()
+  endforeach()
+endmacro(CMH_LIST_APPEND_IF_UNIQUE)
 
 macro(CMH_GET_TARGET_TYPE)
   # Get the type of the target (library, executable, etc).
   get_target_property(CMH_TARGET_TYPE ${CMH_MODULE_NAME} TYPE)
 
   # Custom targets show up as UTILITY.
-  LIST_CONTAINS(CMH_IS_LIBRARY ${CMH_TARGET_TYPE} "STATIC_LIBRARY" "MODULE_LIBRARY" "SHARED_LIBRARY")
-  LIST_CONTAINS(CMH_IS_EXECUTABLE ${CMH_TARGET_TYPE} "EXECUTABLE")
-  LIST_CONTAINS(CMH_IS_HEADER_MODULE ${CMH_TARGET_TYPE} "INTERFACE_LIBRARY")
+  CMH_LIST_CONTAINS(CMH_IS_LIBRARY ${CMH_TARGET_TYPE} "STATIC_LIBRARY" "MODULE_LIBRARY" "SHARED_LIBRARY")
+  CMH_LIST_CONTAINS(CMH_IS_EXECUTABLE ${CMH_TARGET_TYPE} "EXECUTABLE")
+  CMH_LIST_CONTAINS(CMH_IS_HEADER_MODULE ${CMH_TARGET_TYPE} "INTERFACE_LIBRARY")
 endmacro(CMH_GET_TARGET_TYPE)
 
 macro(CMH_FIND_BOOST_HELPER)
