@@ -17,8 +17,8 @@ include_directories(
   # ex. ${OpenCV_INCLUDE_DIRS}
 )
 
-# Create a static CUDA library with the given source files.
-cmh_add_cuda_library_module(
+# List of source files.
+set(SOURCE_FILES
   # ex. file.h
   # ex. file.cpp
   # ex. file.cu
@@ -26,8 +26,20 @@ cmh_add_cuda_library_module(
   # ex. ${CMAKE_CURRENT_LIST_DIR}/../file.cu
 )
 
+# Set the name of this module's source folder in the IDE project (e.g. Visual Studio).
+source_group(${CMH_MODULE_NAME} FILES ${SOURCE_FILES})
+
+# Get the current settings for the CUDA compiler.
+cmh_prepare_cuda_compiler(CMH_CUDA_COMPILER_DEFINITIONS)
+
+# Create a static CUDA library.
+cuda_add_library(${CMH_MODULE_NAME} ${SOURCE_FILES} OPTIONS ${CMH_CUDA_COMPILER_DEFINITIONS})
+
+# Finalize the CUDA library settings.
+cmh_finalize_cuda_library()
+
 # Set the libraries that need to be linked to this module.
-cmh_target_link_libraries(
+target_link_libraries(${CMH_MODULE_NAME}
   # ex. ${Boost_LIBRARIES}
   # ex. ${OpenCV_LIBS}
 )

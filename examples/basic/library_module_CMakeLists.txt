@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION 3.0)
 # ex. find_package(Boost COMPONENTS system thread)
 # ex. find_package(OpenCV COMPONENTS core)
 
-# Create a static library.
+# Create a static library with the given source files.
 cmh_add_library_module(
   # ex. file.h
   # ex. file.cpp

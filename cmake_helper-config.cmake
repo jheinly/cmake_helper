@@ -227,26 +227,8 @@ endmacro(CMH_ADD_EXECUTABLE_MODULE)
 macro(CMH_ADD_CUDA_LIBRARY_MODULE)
   CMH_ADD_MODULE_HELPER(CMH_MODULE_SOURCE_FILES ${ARGN})
   CMH_PREPARE_CUDA_COMPILER(CMH_CUDA_COMPILER_DEFINITIONS)
-
-  # Get the compile definitions and include directories from the current
-  # directory before creating the CUDA library as the cuda_add_library()
-  # macro will modify these values.
-  get_directory_property(CURRENT_COMPILE_DEFINITIONS COMPILE_DEFINITIONS)
-  get_directory_property(CURRENT_INCLUDE_DIRECTORIES INCLUDE_DIRECTORIES)
-
   cuda_add_library(${CMH_MODULE_NAME} ${CMH_MODULE_SOURCE_FILES} OPTIONS ${CMH_CUDA_COMPILER_DEFINITIONS})
-
-  # Now that the CUDA library has been created, set the directory properties
-  # (the compile definitions and include directories) to be interface
-  # properties of the target.
-  if(CURRENT_COMPILE_DEFINITIONS)
-    set_property(TARGET ${CMH_MODULE_NAME} APPEND PROPERTY INTERFACE_COMPILE_DEFINITIONS
-      ${CURRENT_COMPILE_DEFINITIONS})
-  endif()
-  if(CURRENT_INCLUDE_DIRECTORIES)
-    set_property(TARGET ${CMH_MODULE_NAME} APPEND PROPERTY INTERFACE_INCLUDE_DIRECTORIES
-      ${CURRENT_INCLUDE_DIRECTORIES})
-  endif()
+  CMH_FINALIZE_CUDA_LIBRARY()
 endmacro(CMH_ADD_CUDA_LIBRARY_MODULE)
 
 # Convience macro to create a CUDA executable module.
@@ -443,7 +425,29 @@ macro(CMH_PREPARE_CUDA_COMPILER OUTPUT_NAME)
     list(APPEND CMH_CUDA_MODULE_NAMES ${CMH_MODULE_NAME})
   endif()
   set(CMH_CUDA_MODULE_NAMES ${CMH_CUDA_MODULE_NAMES} PARENT_SCOPE)
+  
+  # Get the compile definitions and include directories from the current
+  # directory before creating the CUDA library as the cuda_add_library()
+  # macro will modify these values.
+  get_directory_property(CMH_CURRENT_COMPILE_DEFINITIONS COMPILE_DEFINITIONS)
+  get_directory_property(CMH_CURRENT_INCLUDE_DIRECTORIES INCLUDE_DIRECTORIES)
 endmacro(CMH_PREPARE_CUDA_COMPILER)
+
+# This macro takes the directory properties from the CUDA library and sets
+# them to be target interface properties.
+macro(CMH_FINALIZE_CUDA_LIBRARY)
+  # Once the CUDA library has been created, set the directory properties
+  # (the compile definitions and include directories) to be interface
+  # properties of the target.
+  if(CMH_CURRENT_COMPILE_DEFINITIONS)
+    set_property(TARGET ${CMH_MODULE_NAME} APPEND PROPERTY INTERFACE_COMPILE_DEFINITIONS
+      ${CMH_CURRENT_COMPILE_DEFINITIONS})
+  endif()
+  if(CMH_CURRENT_INCLUDE_DIRECTORIES)
+    set_property(TARGET ${CMH_MODULE_NAME} APPEND PROPERTY INTERFACE_INCLUDE_DIRECTORIES
+      ${CMH_CURRENT_INCLUDE_DIRECTORIES})
+  endif()
+endmacro(CMH_FINALIZE_CUDA_LIBRARY)
 
 # This macro attempts to automatically set the path of the CUDA SDK based on
 # the version of the CUDA Toolkit that was found.
