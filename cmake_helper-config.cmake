@@ -144,11 +144,6 @@ function(CMH_ADD_MODULE_SUBDIRECTORY)
     get_target_property(CURRENT_LINK_LIBRARIES
       ${CMH_MODULE_NAME} INTERFACE_LINK_LIBRARIES)
 
-    # TODO: test to see if the above target properties can correctly extracted
-    #       from a CUDA target
-    # TODO: test to see if CUDA-specific properties are extracted that should
-    #       not be passed to dependencies
-
     # If any of the current interface properties are valid, set them to be the
     # module's interface properties.
     if(CURRENT_COMPILE_DEFINITIONS)
@@ -189,8 +184,6 @@ function(CMH_ADD_MODULE_SUBDIRECTORY)
   # Set this module to have the compile definitions and include directories
   # of its dependencies after we have already saved a copy above of the
   # definitions and directories provided by the user.
-  # TODO: this has already been done if this is a CUDA target, use CMH_CUDA_MODULE_NAMES
-  #       to determine if the current module is a CUDA module
   foreach(DEPENDENCY ${${CMH_MODULE_NAME}_MODULE_DEPENDENCIES})
     set_property(TARGET ${CMH_MODULE_NAME} APPEND PROPERTY
       COMPILE_DEFINITIONS ${${DEPENDENCY}_COMPILE_DEFINITIONS})
@@ -234,7 +227,26 @@ endmacro(CMH_ADD_EXECUTABLE_MODULE)
 macro(CMH_ADD_CUDA_LIBRARY_MODULE)
   CMH_ADD_MODULE_HELPER(CMH_MODULE_SOURCE_FILES ${ARGN})
   CMH_PREPARE_CUDA_COMPILER(CMH_CUDA_COMPILER_DEFINITIONS)
+
+  # Get the compile definitions and include directories from the current
+  # directory before creating the CUDA library as the cuda_add_library()
+  # macro will modify these values.
+  get_directory_property(CURRENT_COMPILE_DEFINITIONS COMPILE_DEFINITIONS)
+  get_directory_property(CURRENT_INCLUDE_DIRECTORIES INCLUDE_DIRECTORIES)
+
   cuda_add_library(${CMH_MODULE_NAME} ${CMH_MODULE_SOURCE_FILES} OPTIONS ${CMH_CUDA_COMPILER_DEFINITIONS})
+
+  # Now that the CUDA library has been created, set the directory properties
+  # (the compile definitions and include directories) to be interface
+  # properties of the target.
+  if(CURRENT_COMPILE_DEFINITIONS)
+    set_property(TARGET ${CMH_MODULE_NAME} APPEND PROPERTY INTERFACE_COMPILE_DEFINITIONS
+      ${CURRENT_COMPILE_DEFINITIONS})
+  endif()
+  if(CURRENT_INCLUDE_DIRECTORIES)
+    set_property(TARGET ${CMH_MODULE_NAME} APPEND PROPERTY INTERFACE_INCLUDE_DIRECTORIES
+      ${CURRENT_INCLUDE_DIRECTORIES})
+  endif()
 endmacro(CMH_ADD_CUDA_LIBRARY_MODULE)
 
 # Convience macro to create a CUDA executable module.
@@ -277,7 +289,14 @@ macro(CMH_TARGET_LINK_LIBRARIES)
 
   # Set this target's link libraries.
   if(CMH_IS_LIBRARY OR CMH_IS_EXECUTABLE)
-    target_link_libraries(${CMH_MODULE_NAME} PUBLIC ${ARGN})
+    if(CMH_IS_CUDA_MODULE)
+      # If this module is a CUDA module we need to use the default
+      # target_link_libraries syntax as FindCUDA.cmake hasn't been
+      # updated to support the new INTERFACE syntax yet.
+      target_link_libraries(${CMH_MODULE_NAME} ${ARGN})
+    else()
+      target_link_libraries(${CMH_MODULE_NAME} PUBLIC ${ARGN})
+    endif()
   else()
     target_link_libraries(${CMH_MODULE_NAME} INTERFACE ${ARGN})
   endif()
@@ -292,7 +311,14 @@ macro(CMH_LINK_MODULES)
   # If this module is an executable, link it to the libraries of its dependencies.
   if(CMH_IS_EXECUTABLE)
     foreach(DEPENDENCY ${${CMH_MODULE_NAME}_MODULE_DEPENDENCIES})
-      target_link_libraries(${CMH_MODULE_NAME} PRIVATE ${${DEPENDENCY}_LINK_LIBRARIES})
+      if(CMH_IS_CUDA_MODULE)
+        # If this module is a CUDA module we need to use the default
+        # target_link_libraries syntax as FindCUDA.cmake hasn't been
+        # updated to support the new INTERFACE syntax yet.
+        target_link_libraries(${CMH_MODULE_NAME} ${${DEPENDENCY}_LINK_LIBRARIES})
+      else()
+        target_link_libraries(${CMH_MODULE_NAME} PRIVATE ${${DEPENDENCY}_LINK_LIBRARIES})
+      endif()
       add_dependencies(${CMH_MODULE_NAME} ${DEPENDENCY})
     endforeach()
   else()
@@ -346,6 +372,9 @@ macro(CMH_GET_TARGET_TYPE)
   CMH_LIST_CONTAINS(CMH_IS_LIBRARY ${CMH_TARGET_TYPE} "STATIC_LIBRARY" "MODULE_LIBRARY" "SHARED_LIBRARY")
   CMH_LIST_CONTAINS(CMH_IS_EXECUTABLE ${CMH_TARGET_TYPE} "EXECUTABLE")
   CMH_LIST_CONTAINS(CMH_IS_HEADER_MODULE ${CMH_TARGET_TYPE} "INTERFACE_LIBRARY")
+
+  # Determine whether or not the current module is a CUDA module.
+  CMH_LIST_CONTAINS(CMH_IS_CUDA_MODULE ${CMH_MODULE_NAME} ${CMH_CUDA_MODULE_NAMES})
 endmacro(CMH_GET_TARGET_TYPE)
 
 # This macro helps find the boost include and library directories.
@@ -394,17 +423,16 @@ macro(CMH_PREPARE_CUDA_COMPILER OUTPUT_NAME)
     set(${OUTPUT_NAME} "-arch=compute_${CAPABILITY} -code=sm_${CAPABILITY},compute_${CAPABILITY}")
   endif()
 
-  # TODO: test to see if list(APPEND) will work in the following
-  #       statements instead of using set() to manually append
-
   # Tell the CUDA compiler to provide verbose output, specifically so that
   # the register and shared memory usage is printed when compiling.
-  set(${OUTPUT_NAME} "${${OUTPUT_NAME}} --ptxas-options=-v")
+  list(APPEND ${OUTPUT_NAME} "--ptxas-options=-v")
 
   # Iterate through the dependencies of this module and add their include directories
   # and compile definitions as these must be specified before creating the CUDA target.
+  # Note that the definitions and include directories will only apply to the CUDA
+  # compilation and not to the C++ targets.
   foreach(DEPENDENCY ${${CMH_MODULE_NAME}_MODULE_DEPENDENCIES})
-    set(${OUTPUT_NAME} "${${OUTPUT_NAME}} ${${DEPENDENCY}_COMPILE_DEFINITIONS}")
+    list(APPEND ${OUTPUT_NAME} "${${DEPENDENCY}_COMPILE_DEFINITIONS}")
     cuda_include_directories(${${DEPENDENCY}_INCLUDE_DIRECTORIES})
   endforeach()
 
