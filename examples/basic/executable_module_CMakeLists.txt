@@ -29,6 +29,3 @@ cmh_target_link_libraries(
   # ex. ${Boost_LIBRARIES}
   # ex. ${OpenCV_LIBS}
 )
-
-# Link the dependencies of this module.
-cmh_link_modules()
