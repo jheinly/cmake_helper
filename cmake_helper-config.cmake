@@ -1,4 +1,7 @@
 # TODO: add test folder which contains CMake/C++ code to test the functionality of this package
+# TODO: prevent duplicate compile definitions, include directories, and link libraries from being specified for the same target
+# TODO: verify that CUDA-specific settings aren't being accidentally propagated to other modules
+# TODO: add standalone executable support
 
 # CMake 3.0 is required as it added the add_library() INTERFACE option.
 cmake_minimum_required(VERSION 3.0)
