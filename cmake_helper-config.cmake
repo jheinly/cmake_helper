@@ -1,7 +1,6 @@
 # TODO: add test folder which contains CMake/C++ code to test the functionality of this package
 # TODO: prevent duplicate compile definitions, include directories, and link libraries from being specified for the same target
 # TODO: verify that CUDA-specific settings aren't being accidentally propagated to other modules
-# TODO: add standalone executable support
 
 # CMake 3.0 is required as it added the add_library() INTERFACE option.
 cmake_minimum_required(VERSION 3.0)
@@ -34,6 +33,14 @@ macro(CMH_NEW_MODULE_WITH_DEPENDENCIES)
   # Prevent this function from being called more than one time in the current project.
   if(NOT ${CMH_MODULE_NAME}_DEFINED)
     set(${CMH_MODULE_NAME}_DEFINED TRUE)
+    
+    # Create a list of the currently loaded modules. This will be used to
+    # determine which modules were included when creating a standalone
+    # executable that references one or more cmake_helper modules.
+    if(NOT CMH_CURRENT_LOADED_MODULES)
+      set(CMH_CURRENT_LOADED_MODULES "")
+    endif()
+    list(APPEND CMH_CURRENT_LOADED_MODULES ${CMH_MODULE_NAME})
 
     # Parse the input arguments (the dependencies of this module).
     set(${CMH_MODULE_NAME}_MODULE_DEPENDENCY_PATHS "")
@@ -73,7 +80,9 @@ endmacro(CMH_NEW_MODULE_WITH_DEPENDENCIES)
 
 function(CMH_ADD_MODULE_SUBDIRECTORY)
   # Include the CMakeLists.txt file from the current directory.
+  set(CMH_IN_SUBDIRECTORY TRUE)
   add_subdirectory(${CMAKE_CURRENT_LIST_DIR} ${CMAKE_BINARY_DIR}/${CMH_MODULE_NAME})
+  set(CMH_IN_SUBDIRECTORY FALSE)
 
   # Help find Boost.
   CMH_FIND_BOOST_HELPER()
@@ -291,25 +300,61 @@ endmacro(CMH_TARGET_LINK_LIBRARIES)
 
 # This macro exists to enable functionality for commands that must be run in
 # the same subdirectory as the given target, ex. target_link_libraries().
+# It should be called at the end of an executable (either standalone or a module).
 macro(CMH_LINK_MODULES)
-  # Get the type of the target (library, executable, etc).
-  CMH_GET_TARGET_TYPE()
+  # Get the number of input arguments.
+  list(LENGTH ARGN LIST_LEN)
+  
+  # If this command is called from within a cmake_helper module's subdirectory,
+  # then we expect there to be no arguments, and we simply link this module's
+  # dependencies to it.
+  if(CMH_IN_SUBDIRECTORY)
+    if(${LIST_LEN} EQUAL 0)
+      # Get the type of the target (library, executable, etc).
+      CMH_GET_TARGET_TYPE()
 
-  # If this module is an executable, link it to the libraries of its dependencies.
-  if(CMH_IS_EXECUTABLE)
-    foreach(DEPENDENCY ${${CMH_MODULE_NAME}_MODULE_DEPENDENCIES})
-      if(CMH_IS_CUDA_MODULE)
-        # If this module is a CUDA module we need to use the default
-        # target_link_libraries syntax as FindCUDA.cmake hasn't been
-        # updated to support the new INTERFACE syntax yet.
-        target_link_libraries(${CMH_MODULE_NAME} ${${DEPENDENCY}_LINK_LIBRARIES})
+      # If this module is an executable, link it to the libraries of its dependencies.
+      if(CMH_IS_EXECUTABLE)
+        foreach(DEPENDENCY ${${CMH_MODULE_NAME}_MODULE_DEPENDENCIES})
+          if(CMH_IS_CUDA_MODULE)
+            # If this module is a CUDA module we need to use the default
+            # target_link_libraries syntax as FindCUDA.cmake hasn't been
+            # updated to support the new INTERFACE syntax yet.
+            target_link_libraries(${CMH_MODULE_NAME} ${${DEPENDENCY}_LINK_LIBRARIES})
+          else()
+            target_link_libraries(${CMH_MODULE_NAME} PRIVATE ${${DEPENDENCY}_LINK_LIBRARIES})
+          endif()
+          add_dependencies(${CMH_MODULE_NAME} ${DEPENDENCY})
+        endforeach()
       else()
-        target_link_libraries(${CMH_MODULE_NAME} PRIVATE ${${DEPENDENCY}_LINK_LIBRARIES})
+        message(WARNING "cmh_link_modules() called on target that was not an executable.")
       endif()
-      add_dependencies(${CMH_MODULE_NAME} ${DEPENDENCY})
-    endforeach()
+    else()
+      message(WARNING "cmh_link_modules() called with argument(s) when none were expected.")
+    endif()
   else()
-    message(WARNING "cmh_link_modules() called on target that was not an executable.")
+    # If this command is not called from within a module's subdirectory, then we
+    # expect that it is being called from a standalone executable, and the single
+    # argument to this command is the name of the executable we wish to link all
+    # of the modules to.
+    if(${LIST_LEN} EQUAL 1)
+      # Iterate through the currently loaded cmake_helper modules.
+      foreach(DEPENDENCY ${CMH_CURRENT_LOADED_MODULES})
+        # Set the compile definitions.
+        set_property(TARGET ${ARGN} APPEND PROPERTY
+          COMPILE_DEFINITIONS ${${DEPENDENCY}_COMPILE_DEFINITIONS})
+        
+        # Set the include directories.
+        set_property(TARGET ${ARGN} APPEND PROPERTY
+          INCLUDE_DIRECTORIES ${${DEPENDENCY}_INCLUDE_DIRECTORIES})
+        
+        # Link the libraries, and add the dependency.
+        target_link_libraries(${ARGN} PRIVATE ${${DEPENDENCY}_LINK_LIBRARIES}
+        add_dependencies(${ARGN} ${DEPENDENCY})
+      endforeach()
+    else()
+      message(WARNING "cmh_link_modules() expected 1 argument, but received ${LIST_LEN}.")
+    endif()
   endif()
 endmacro(CMH_LINK_MODULES)
 
