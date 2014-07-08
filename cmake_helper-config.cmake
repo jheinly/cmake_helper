@@ -33,7 +33,7 @@ macro(CMH_NEW_MODULE_WITH_DEPENDENCIES)
   # Prevent this function from being called more than one time in the current project.
   if(NOT ${CMH_MODULE_NAME}_DEFINED)
     set(${CMH_MODULE_NAME}_DEFINED TRUE)
-    
+
     # Create a list of the currently loaded modules. This will be used to
     # determine which modules were included when creating a standalone
     # executable that references one or more cmake_helper modules.
@@ -303,8 +303,9 @@ endmacro(CMH_TARGET_LINK_LIBRARIES)
 # It should be called at the end of an executable (either standalone or a module).
 macro(CMH_LINK_MODULES)
   # Get the number of input arguments.
-  list(LENGTH ARGN LIST_LEN)
-  
+  set(EXECUTABLE_NAME ${ARGN})
+  list(LENGTH EXECUTABLE_NAME LIST_LEN)
+
   # If this command is called from within a cmake_helper module's subdirectory,
   # then we expect there to be no arguments, and we simply link this module's
   # dependencies to it.
@@ -341,16 +342,16 @@ macro(CMH_LINK_MODULES)
       # Iterate through the currently loaded cmake_helper modules.
       foreach(DEPENDENCY ${CMH_CURRENT_LOADED_MODULES})
         # Set the compile definitions.
-        set_property(TARGET ${ARGN} APPEND PROPERTY
+        set_property(TARGET ${EXECUTABLE_NAME} APPEND PROPERTY
           COMPILE_DEFINITIONS ${${DEPENDENCY}_COMPILE_DEFINITIONS})
-        
+
         # Set the include directories.
-        set_property(TARGET ${ARGN} APPEND PROPERTY
+        set_property(TARGET ${EXECUTABLE_NAME} APPEND PROPERTY
           INCLUDE_DIRECTORIES ${${DEPENDENCY}_INCLUDE_DIRECTORIES})
-        
+
         # Link the libraries, and add the dependency.
-        target_link_libraries(${ARGN} PRIVATE ${${DEPENDENCY}_LINK_LIBRARIES}
-        add_dependencies(${ARGN} ${DEPENDENCY})
+        target_link_libraries(${EXECUTABLE_NAME} PRIVATE ${${DEPENDENCY}_LINK_LIBRARIES})
+        add_dependencies(${EXECUTABLE_NAME} ${DEPENDENCY})
       endforeach()
     else()
       message(WARNING "cmh_link_modules() expected 1 argument, but received ${LIST_LEN}.")
@@ -475,7 +476,7 @@ macro(CMH_PREPARE_CUDA_COMPILER OUTPUT_NAME)
     list(APPEND CMH_CUDA_MODULE_NAMES ${CMH_MODULE_NAME})
   endif()
   set(CMH_CUDA_MODULE_NAMES ${CMH_CUDA_MODULE_NAMES} PARENT_SCOPE)
-  
+
   # Get the compile definitions and include directories from the current
   # directory before creating the CUDA library as the cuda_add_library()
   # macro will modify these values.
