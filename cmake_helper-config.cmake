@@ -91,7 +91,7 @@ function(CMH_ADD_MODULE_SUBDIRECTORY)
   CMH_FIND_CUDA_SDK_HELPER()
 
   # Get the target type after the subdirectory has been processed.
-  CMH_GET_TARGET_TYPE()
+  CMH_GET_TARGET_TYPE(${CMH_MODULE_NAME})
 
   # Set the name of this module when compiling in Debug mode.
   set(CMH_MODULE_NAME_DEBUG ${CMH_MODULE_NAME}_d)
@@ -255,7 +255,7 @@ endmacro(CMH_ADD_CUDA_EXECUTABLE_MODULE)
 # Convience macro to set the compile definitions of a module.
 macro(CMH_TARGET_COMPILE_DEFINITIONS)
   # Get the target type.
-  CMH_GET_TARGET_TYPE()
+  CMH_GET_TARGET_TYPE(${CMH_MODULE_NAME})
 
   # Set this target's compile definitions.
   if(CMH_IS_LIBRARY OR CMH_IS_EXECUTABLE)
@@ -268,7 +268,7 @@ endmacro(CMH_TARGET_COMPILE_DEFINITIONS)
 # Convience macro to set the include directories of a module.
 macro(CMH_TARGET_INCLUDE_DIRECTORIES)
   # Get the target type.
-  CMH_GET_TARGET_TYPE()
+  CMH_GET_TARGET_TYPE(${CMH_MODULE_NAME})
 
   # Set this target's include directories.
   if(CMH_IS_LIBRARY OR CMH_IS_EXECUTABLE)
@@ -281,7 +281,7 @@ endmacro(CMH_TARGET_INCLUDE_DIRECTORIES)
 # Convience macro to set the link libraries of a module.
 macro(CMH_TARGET_LINK_LIBRARIES)
   # Get the target type.
-  CMH_GET_TARGET_TYPE()
+  CMH_GET_TARGET_TYPE(${CMH_MODULE_NAME})
 
   # Set this target's link libraries.
   if(CMH_IS_LIBRARY OR CMH_IS_EXECUTABLE)
@@ -312,7 +312,7 @@ macro(CMH_LINK_MODULES)
   if(CMH_IN_SUBDIRECTORY)
     if(${LIST_LEN} EQUAL 0)
       # Get the type of the target (library, executable, etc).
-      CMH_GET_TARGET_TYPE()
+      CMH_GET_TARGET_TYPE(${CMH_MODULE_NAME})
 
       # If this module is an executable, link it to the libraries of its dependencies.
       if(CMH_IS_EXECUTABLE)
@@ -339,20 +339,28 @@ macro(CMH_LINK_MODULES)
     # argument to this command is the name of the executable we wish to link all
     # of the modules to.
     if(${LIST_LEN} EQUAL 1)
-      # Iterate through the currently loaded cmake_helper modules.
-      foreach(DEPENDENCY ${CMH_CURRENT_LOADED_MODULES})
-        # Set the compile definitions.
-        set_property(TARGET ${EXECUTABLE_NAME} APPEND PROPERTY
-          COMPILE_DEFINITIONS ${${DEPENDENCY}_COMPILE_DEFINITIONS})
+      # Get the type of the target (library, executable, etc).
+      CMH_GET_TARGET_TYPE(${EXECUTABLE_NAME})
+      
+      # If this target is an executable, set up all of its dependencies.
+      if(CMH_IS_EXECUTABLE)
+        # Iterate through the currently loaded cmake_helper modules.
+        foreach(DEPENDENCY ${CMH_CURRENT_LOADED_MODULES})
+          # Set the compile definitions.
+          set_property(TARGET ${EXECUTABLE_NAME} APPEND PROPERTY
+            COMPILE_DEFINITIONS ${${DEPENDENCY}_COMPILE_DEFINITIONS})
 
-        # Set the include directories.
-        set_property(TARGET ${EXECUTABLE_NAME} APPEND PROPERTY
-          INCLUDE_DIRECTORIES ${${DEPENDENCY}_INCLUDE_DIRECTORIES})
+          # Set the include directories.
+          set_property(TARGET ${EXECUTABLE_NAME} APPEND PROPERTY
+            INCLUDE_DIRECTORIES ${${DEPENDENCY}_INCLUDE_DIRECTORIES})
 
-        # Link the libraries, and add the dependency.
-        target_link_libraries(${EXECUTABLE_NAME} PRIVATE ${${DEPENDENCY}_LINK_LIBRARIES})
-        add_dependencies(${EXECUTABLE_NAME} ${DEPENDENCY})
-      endforeach()
+          # Link the libraries, and add the dependency.
+          target_link_libraries(${EXECUTABLE_NAME} PRIVATE ${${DEPENDENCY}_LINK_LIBRARIES})
+          add_dependencies(${EXECUTABLE_NAME} ${DEPENDENCY})
+        endforeach()
+      else()
+        message(WARNING "cmh_link_modules() called on target that was not an executable.")
+      endif()
     else()
       message(WARNING "cmh_link_modules() expected 1 argument, but received ${LIST_LEN}.")
     endif()
@@ -397,9 +405,9 @@ macro(CMH_LIST_APPEND_IF_UNIQUE LIST_NAME)
 endmacro(CMH_LIST_APPEND_IF_UNIQUE)
 
 # This macro will determine the type of current module.
-macro(CMH_GET_TARGET_TYPE)
+macro(CMH_GET_TARGET_TYPE TARGET_NAME)
   # Get the type of the target (library, executable, etc).
-  get_target_property(CMH_TARGET_TYPE ${CMH_MODULE_NAME} TYPE)
+  get_target_property(CMH_TARGET_TYPE ${TARGET_NAME} TYPE)
 
   # Custom targets show up as UTILITY.
   CMH_LIST_CONTAINS(CMH_IS_LIBRARY ${CMH_TARGET_TYPE} "STATIC_LIBRARY" "MODULE_LIBRARY" "SHARED_LIBRARY")
