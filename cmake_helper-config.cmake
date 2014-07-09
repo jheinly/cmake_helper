@@ -341,7 +341,7 @@ macro(CMH_LINK_MODULES)
     if(${LIST_LEN} EQUAL 1)
       # Get the type of the target (library, executable, etc).
       CMH_GET_TARGET_TYPE(${EXECUTABLE_NAME})
-      
+
       # If this target is an executable, set up all of its dependencies.
       if(CMH_IS_EXECUTABLE)
         # Iterate through the currently loaded cmake_helper modules.
@@ -473,7 +473,11 @@ macro(CMH_PREPARE_CUDA_COMPILER OUTPUT_NAME)
   # Note that the definitions and include directories will only apply to the CUDA
   # compilation and not to the C++ targets.
   foreach(DEPENDENCY ${${CMH_MODULE_NAME}_MODULE_DEPENDENCIES})
-    list(APPEND ${OUTPUT_NAME} "${${DEPENDENCY}_COMPILE_DEFINITIONS}")
+    foreach(DEFINITION ${${DEPENDENCY}_COMPILE_DEFINITIONS})
+      # We need to add the -D flag back to all of the compile definitions that we
+      # will pass to the CUDA compiler.
+      list(APPEND ${OUTPUT_NAME} "-D${DEFINITION}")
+    endforeach()
     cuda_include_directories(${${DEPENDENCY}_INCLUDE_DIRECTORIES})
   endforeach()
 
