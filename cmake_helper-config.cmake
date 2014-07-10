@@ -1,6 +1,7 @@
 # TODO: add test folder which contains CMake/C++ code to test the functionality of this package
 # TODO: prevent duplicate compile definitions, include directories, and link libraries from being specified for the same target
 # TODO: verify that CUDA-specific settings aren't being accidentally propagated to other modules
+# TODO: add standalone CUDA executable support
 
 # CMake 3.0 is required as it added the add_library() INTERFACE option.
 cmake_minimum_required(VERSION 3.0)
@@ -83,6 +84,9 @@ function(CMH_ADD_MODULE_SUBDIRECTORY)
   set(CMH_IN_SUBDIRECTORY TRUE)
   add_subdirectory(${CMAKE_CURRENT_LIST_DIR} ${CMAKE_BINARY_DIR}/${CMH_MODULE_NAME})
   set(CMH_IN_SUBDIRECTORY FALSE)
+
+  # Help set up OpenCV.
+  CMH_OPENCV_HELPER()
 
   # Help find Boost.
   CMH_FIND_BOOST_HELPER()
@@ -293,8 +297,10 @@ macro(CMH_TARGET_LINK_LIBRARIES)
     else()
       target_link_libraries(${CMH_MODULE_NAME} PUBLIC ${ARGN})
     endif()
-  else()
+  elseif(CMH_IS_HEADER_MODULE)
     target_link_libraries(${CMH_MODULE_NAME} INTERFACE ${ARGN})
+  else()
+    message(WARNING "cmh_target_link_libraries() called on target of unrecognized type.")
   endif()
 endmacro(CMH_TARGET_LINK_LIBRARIES)
 
@@ -323,7 +329,7 @@ macro(CMH_LINK_MODULES)
             # updated to support the new INTERFACE syntax yet.
             target_link_libraries(${CMH_MODULE_NAME} ${${DEPENDENCY}_LINK_LIBRARIES})
           else()
-            target_link_libraries(${CMH_MODULE_NAME} PRIVATE ${${DEPENDENCY}_LINK_LIBRARIES})
+            target_link_libraries(${CMH_MODULE_NAME} PUBLIC ${${DEPENDENCY}_LINK_LIBRARIES})
           endif()
           add_dependencies(${CMH_MODULE_NAME} ${DEPENDENCY})
         endforeach()
@@ -355,7 +361,7 @@ macro(CMH_LINK_MODULES)
             INCLUDE_DIRECTORIES ${${DEPENDENCY}_INCLUDE_DIRECTORIES})
 
           # Link the libraries, and add the dependency.
-          target_link_libraries(${EXECUTABLE_NAME} PRIVATE ${${DEPENDENCY}_LINK_LIBRARIES})
+          target_link_libraries(${EXECUTABLE_NAME} PUBLIC ${${DEPENDENCY}_LINK_LIBRARIES})
           add_dependencies(${EXECUTABLE_NAME} ${DEPENDENCY})
         endforeach()
       else()
@@ -417,6 +423,20 @@ macro(CMH_GET_TARGET_TYPE TARGET_NAME)
   # Determine whether or not the current module is a CUDA module.
   CMH_LIST_CONTAINS(CMH_IS_CUDA_MODULE ${CMH_MODULE_NAME} ${CMH_CUDA_MODULE_NAMES})
 endmacro(CMH_GET_TARGET_TYPE)
+
+macro(CMH_OPENCV_HELPER)
+  # By default, OpenCV versions 2.4.8+ export its modules as shared library
+  # targets, which cmake_helper modules can then link to. However, these
+  # exported targets don't have global scope, so we need to run the
+  # find_package() command at global scope to define all of the targets.
+  # Unfortunately, one side effect of this is that once one module references
+  # OpenCV, all following modules will have the OpenCV include directories
+  # added to them as well (because the OpenCV find_package() config file
+  # automatically sets up the include directories).
+  if(OpenCV_FOUND AND NOT TARGET opencv_core)
+    find_package(OpenCV COMPONENTS core)
+  endif()
+endmacro(CMH_OPENCV_HELPER)
 
 # This macro helps find the boost include and library directories.
 macro(CMH_FIND_BOOST_HELPER)
