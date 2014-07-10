@@ -201,10 +201,13 @@ function(CMH_ADD_MODULE_SUBDIRECTORY)
   # of its dependencies after we have already saved a copy above of the
   # definitions and directories provided by the user.
   foreach(DEPENDENCY ${${CMH_MODULE_NAME}_MODULE_DEPENDENCIES})
-    set_property(TARGET ${CMH_MODULE_NAME} APPEND PROPERTY
-      COMPILE_DEFINITIONS ${${DEPENDENCY}_COMPILE_DEFINITIONS})
-    set_property(TARGET ${CMH_MODULE_NAME} APPEND PROPERTY
-      INCLUDE_DIRECTORIES ${${DEPENDENCY}_INCLUDE_DIRECTORIES})
+    if(CMH_IS_HEADER_MODULE)
+      target_compile_definitions(${CMH_MODULE_NAME} INTERFACE ${${DEPENDENCY}_COMPILE_DEFINITIONS})
+      target_include_directories(${CMH_MODULE_NAME} INTERFACE ${${DEPENDENCY}_INCLUDE_DIRECTORIES})
+    else()
+      target_compile_definitions(${CMH_MODULE_NAME} PUBLIC ${${DEPENDENCY}_COMPILE_DEFINITIONS})
+      target_include_directories(${CMH_MODULE_NAME} PUBLIC ${${DEPENDENCY}_INCLUDE_DIRECTORIES})
+    endif()
   endforeach()
 endfunction(CMH_ADD_MODULE_SUBDIRECTORY)
 
@@ -353,12 +356,10 @@ macro(CMH_LINK_MODULES)
         # Iterate through the currently loaded cmake_helper modules.
         foreach(DEPENDENCY ${CMH_CURRENT_LOADED_MODULES})
           # Set the compile definitions.
-          set_property(TARGET ${EXECUTABLE_NAME} APPEND PROPERTY
-            COMPILE_DEFINITIONS ${${DEPENDENCY}_COMPILE_DEFINITIONS})
+          target_compile_definitions(${EXECUTABLE_NAME} PUBLIC ${${DEPENDENCY}_COMPILE_DEFINITIONS})
 
           # Set the include directories.
-          set_property(TARGET ${EXECUTABLE_NAME} APPEND PROPERTY
-            INCLUDE_DIRECTORIES ${${DEPENDENCY}_INCLUDE_DIRECTORIES})
+          target_include_directories(${EXECUTABLE_NAME} PUBLIC ${${DEPENDENCY}_INCLUDE_DIRECTORIES})
 
           # Link the libraries, and add the dependency.
           target_link_libraries(${EXECUTABLE_NAME} PUBLIC ${${DEPENDENCY}_LINK_LIBRARIES})
@@ -523,12 +524,10 @@ macro(CMH_FINALIZE_CUDA_LIBRARY)
   # (the compile definitions and include directories) to be interface
   # properties of the target.
   if(CMH_CURRENT_COMPILE_DEFINITIONS)
-    set_property(TARGET ${CMH_MODULE_NAME} APPEND PROPERTY INTERFACE_COMPILE_DEFINITIONS
-      ${CMH_CURRENT_COMPILE_DEFINITIONS})
+    target_compile_definitions(${CMH_MODULE_NAME} PUBLIC ${CMH_CURRENT_COMPILE_DEFINITIONS})
   endif()
   if(CMH_CURRENT_INCLUDE_DIRECTORIES)
-    set_property(TARGET ${CMH_MODULE_NAME} APPEND PROPERTY INTERFACE_INCLUDE_DIRECTORIES
-      ${CMH_CURRENT_INCLUDE_DIRECTORIES})
+    target_include_directories(${CMH_MODULE_NAME} PUBLIC ${CMH_CURRENT_INCLUDE_DIRECTORIES})
   endif()
 endmacro(CMH_FINALIZE_CUDA_LIBRARY)
 
