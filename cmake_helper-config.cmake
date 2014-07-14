@@ -2,6 +2,7 @@
 # TODO: prevent duplicate compile definitions, include directories, and link libraries from being specified for the same target
 # TODO: verify that CUDA-specific settings aren't being accidentally propagated to other modules
 # TODO: add standalone CUDA executable support
+# TODO: allow the user to choose between different warning levels
 
 # CMake 3.0 is required as it added the add_library() INTERFACE option.
 cmake_minimum_required(VERSION 3.0)
@@ -180,11 +181,14 @@ function(CMH_ADD_MODULE_SUBDIRECTORY)
 
   if(CMH_IS_LIBRARY OR CMH_IS_HEADER_MODULE)
     # Set the interface properties for this module to their default empty values.
+    set(${CMH_MODULE_NAME}_COMPILE_OPTIONS "")
     set(${CMH_MODULE_NAME}_COMPILE_DEFINITIONS "")
     set(${CMH_MODULE_NAME}_INCLUDE_DIRECTORIES "")
     set(${CMH_MODULE_NAME}_LINK_LIBRARIES "")
 
     # Get the current interface properties for this module.
+    get_target_property(CURRENT_COMPILE_OPTIONS
+      ${CMH_MODULE_NAME} INTERFACE_COMPILE_OPTIONS)
     get_target_property(CURRENT_COMPILE_DEFINITIONS
       ${CMH_MODULE_NAME} INTERFACE_COMPILE_DEFINITIONS)
     get_target_property(CURRENT_INCLUDE_DIRECTORIES
@@ -194,6 +198,9 @@ function(CMH_ADD_MODULE_SUBDIRECTORY)
 
     # If any of the current interface properties are valid, set them to be the
     # module's interface properties.
+    if(CURRENT_COMPILE_OPTIONS)
+      set(${CMH_MODULE_NAME}_COMPILE_OPTIONS ${CURRENT_COMPILE_OPTIONS})
+    endif()
     if(CURRENT_COMPILE_DEFINITIONS)
       set(${CMH_MODULE_NAME}_COMPILE_DEFINITIONS ${CURRENT_COMPILE_DEFINITIONS})
     endif()
@@ -224,6 +231,7 @@ function(CMH_ADD_MODULE_SUBDIRECTORY)
     endif()
 
     # Set the inferface properties to have scope outside of this function.
+    set(${CMH_MODULE_NAME}_COMPILE_OPTIONS ${${CMH_MODULE_NAME}_COMPILE_OPTIONS} PARENT_SCOPE)
     set(${CMH_MODULE_NAME}_COMPILE_DEFINITIONS ${${CMH_MODULE_NAME}_COMPILE_DEFINITIONS} PARENT_SCOPE)
     set(${CMH_MODULE_NAME}_INCLUDE_DIRECTORIES ${${CMH_MODULE_NAME}_INCLUDE_DIRECTORIES} PARENT_SCOPE)
     set(${CMH_MODULE_NAME}_LINK_LIBRARIES ${${CMH_MODULE_NAME}_LINK_LIBRARIES} PARENT_SCOPE)
@@ -234,9 +242,11 @@ function(CMH_ADD_MODULE_SUBDIRECTORY)
   # definitions and directories provided by the user.
   foreach(DEPENDENCY ${${CMH_MODULE_NAME}_MODULE_DEPENDENCIES})
     if(CMH_IS_HEADER_MODULE)
+      target_compile_options(${CMH_MODULE_NAME} INTERFACE ${${DEPENDENCY}_COMPILE_OPTIONS})
       target_compile_definitions(${CMH_MODULE_NAME} INTERFACE ${${DEPENDENCY}_COMPILE_DEFINITIONS})
       target_include_directories(${CMH_MODULE_NAME} INTERFACE ${${DEPENDENCY}_INCLUDE_DIRECTORIES})
     else()
+      target_compile_options(${CMH_MODULE_NAME} PUBLIC ${${DEPENDENCY}_COMPILE_OPTIONS})
       target_compile_definitions(${CMH_MODULE_NAME} PUBLIC ${${DEPENDENCY}_COMPILE_DEFINITIONS})
       target_include_directories(${CMH_MODULE_NAME} PUBLIC ${${DEPENDENCY}_INCLUDE_DIRECTORIES})
     endif()
@@ -244,7 +254,7 @@ function(CMH_ADD_MODULE_SUBDIRECTORY)
 endfunction(CMH_ADD_MODULE_SUBDIRECTORY)
 
 # This macro parses the arguments passed to a cmh_add_*_module() call.
-macro(CMH_ADD_MODULE_HELPER OUTPUT_NAME)
+macro(CMH_BEGIN_ADD_MODULE OUTPUT_NAME)
   CMAKE_PARSE_ARGUMENTS(CMH_MODULE "" "FOLDER_NAME" "" ${ARGN})
   if(CMH_MODULE_FOLDER_NAME)
     source_group(${CMH_MODULE_FOLDER_NAME} FILES ${CMH_MODULE_UNPARSED_ARGUMENTS})
@@ -252,44 +262,69 @@ macro(CMH_ADD_MODULE_HELPER OUTPUT_NAME)
     source_group(${CMH_MODULE_NAME} FILES ${CMH_MODULE_UNPARSED_ARGUMENTS})
   endif()
   set(${OUTPUT_NAME} ${CMH_MODULE_UNPARSED_ARGUMENTS})
-endmacro(CMH_ADD_MODULE_HELPER)
+endmacro(CMH_BEGIN_ADD_MODULE)
+
+# This macro is called at the end of a cmh_add_*_module() call.
+macro(CMH_END_ADD_MODULE)
+  CMH_OPENMP_HELPER()
+endmacro(CMH_END_ADD_MODULE)
 
 # Convience macro to create a header module.
 macro(CMH_ADD_HEADER_MODULE)
-  CMH_ADD_MODULE_HELPER(CMH_MODULE_SOURCE_FILES ${ARGN})
+  CMH_BEGIN_ADD_MODULE(CMH_MODULE_SOURCE_FILES ${ARGN})
   add_custom_target(${CMH_MODULE_NAME}_custom_target SOURCES ${CMH_MODULE_SOURCE_FILES})
   set_target_properties(${CMH_MODULE_NAME}_custom_target PROPERTIES PROJECT_LABEL ${CMH_MODULE_NAME})
   add_library(${CMH_MODULE_NAME} INTERFACE)
+  CMH_END_ADD_MODULE()
 endmacro(CMH_ADD_HEADER_MODULE)
 
 # Convience macro to create a library module.
 macro(CMH_ADD_LIBRARY_MODULE)
-  CMH_ADD_MODULE_HELPER(CMH_MODULE_SOURCE_FILES ${ARGN})
+  CMH_BEGIN_ADD_MODULE(CMH_MODULE_SOURCE_FILES ${ARGN})
   add_library(${CMH_MODULE_NAME} ${CMH_MODULE_SOURCE_FILES})
+  CMH_END_ADD_MODULE()
 endmacro(CMH_ADD_LIBRARY_MODULE)
 
 # Convience macro to create an executable module.
 macro(CMH_ADD_EXECUTABLE_MODULE)
-  CMH_ADD_MODULE_HELPER(CMH_MODULE_SOURCE_FILES ${ARGN})
+  CMH_BEGIN_ADD_MODULE(CMH_MODULE_SOURCE_FILES ${ARGN})
   add_executable(${CMH_MODULE_NAME} ${CMH_MODULE_SOURCE_FILES})
   CMH_LINK_MODULES()
+  CMH_END_ADD_MODULE()
 endmacro(CMH_ADD_EXECUTABLE_MODULE)
 
 # Convience macro to create a CUDA library module.
 macro(CMH_ADD_CUDA_LIBRARY_MODULE)
-  CMH_ADD_MODULE_HELPER(CMH_MODULE_SOURCE_FILES ${ARGN})
+  CMH_BEGIN_ADD_MODULE(CMH_MODULE_SOURCE_FILES ${ARGN})
   CMH_PREPARE_CUDA_COMPILER(CMH_CUDA_COMPILER_DEFINITIONS)
   cuda_add_library(${CMH_MODULE_NAME} ${CMH_MODULE_SOURCE_FILES} OPTIONS ${CMH_CUDA_COMPILER_DEFINITIONS})
   CMH_FINALIZE_CUDA_LIBRARY()
+  CMH_END_ADD_MODULE()
 endmacro(CMH_ADD_CUDA_LIBRARY_MODULE)
 
 # Convience macro to create a CUDA executable module.
 macro(CMH_ADD_CUDA_EXECUTABLE_MODULE)
-  CMH_ADD_MODULE_HELPER(CMH_MODULE_SOURCE_FILES ${ARGN})
+  CMH_BEGIN_ADD_MODULE(CMH_MODULE_SOURCE_FILES ${ARGN})
   CMH_PREPARE_CUDA_COMPILER(CMH_CUDA_COMPILER_DEFINITIONS)
   cuda_add_executable(${CMH_MODULE_NAME} ${CMH_MODULE_SOURCE_FILES} OPTIONS ${CMH_CUDA_COMPILER_DEFINITIONS})
   CMH_LINK_MODULES()
+  CMH_END_ADD_MODULE()
 endmacro(CMH_ADD_CUDA_EXECUTABLE_MODULE)
+
+# Convience macro to set the compile options of a module.
+macro(CMH_TARGET_COMPILE_OPTIONS)
+  # Get the target type.
+  CMH_GET_TARGET_TYPE(${CMH_MODULE_NAME})
+
+  # Set this target's compile definitions.
+  if(CMH_IS_HEADER_MODULE)
+    target_compile_options(${CMH_MODULE_NAME} INTERFACE ${ARGN})
+  elseif(CMH_IS_LIBRARY OR CMH_IS_EXECUTABLE)
+    target_compile_options(${CMH_MODULE_NAME} PUBLIC ${ARGN})
+  else()
+    message(WARNING "cmake_helper: cmh_target_compile_options() called on target of unrecognized type.")
+  endif()
+endmacro(CMH_TARGET_COMPILE_OPTIONS)
 
 # Convience macro to set the compile definitions of a module.
 macro(CMH_TARGET_COMPILE_DEFINITIONS)
@@ -297,10 +332,12 @@ macro(CMH_TARGET_COMPILE_DEFINITIONS)
   CMH_GET_TARGET_TYPE(${CMH_MODULE_NAME})
 
   # Set this target's compile definitions.
-  if(CMH_IS_LIBRARY OR CMH_IS_EXECUTABLE)
+  if(CMH_IS_HEADER_MODULE)
+    target_compile_definitions(${CMH_MODULE_NAME} INTERFACE ${ARGN})
+  elseif(CMH_IS_LIBRARY OR CMH_IS_EXECUTABLE)
     target_compile_definitions(${CMH_MODULE_NAME} PUBLIC ${ARGN})
   else()
-    target_compile_definitions(${CMH_MODULE_NAME} INTERFACE ${ARGN})
+    message(WARNING "cmake_helper: cmh_target_compile_definitions() called on target of unrecognized type.")
   endif()
 endmacro(CMH_TARGET_COMPILE_DEFINITIONS)
 
@@ -310,10 +347,12 @@ macro(CMH_TARGET_INCLUDE_DIRECTORIES)
   CMH_GET_TARGET_TYPE(${CMH_MODULE_NAME})
 
   # Set this target's include directories.
-  if(CMH_IS_LIBRARY OR CMH_IS_EXECUTABLE)
+  if(CMH_IS_HEADER_MODULE)
+    target_include_directories(${CMH_MODULE_NAME} INTERFACE ${ARGN})
+  elseif(CMH_IS_LIBRARY OR CMH_IS_EXECUTABLE)
     target_include_directories(${CMH_MODULE_NAME} PUBLIC ${ARGN})
   else()
-    target_include_directories(${CMH_MODULE_NAME} INTERFACE ${ARGN})
+    message(WARNING "cmake_helper: cmh_target_include_directories() called on target of unrecognized type.")
   endif()
 endmacro(CMH_TARGET_INCLUDE_DIRECTORIES)
 
@@ -323,7 +362,9 @@ macro(CMH_TARGET_LINK_LIBRARIES)
   CMH_GET_TARGET_TYPE(${CMH_MODULE_NAME})
 
   # Set this target's link libraries.
-  if(CMH_IS_LIBRARY OR CMH_IS_EXECUTABLE)
+  if(CMH_IS_HEADER_MODULE)
+    target_link_libraries(${CMH_MODULE_NAME} INTERFACE ${ARGN})
+  elseif(CMH_IS_LIBRARY OR CMH_IS_EXECUTABLE)
     if(CMH_IS_CUDA_MODULE)
       # If this module is a CUDA module we need to use the default
       # target_link_libraries syntax as FindCUDA.cmake hasn't been
@@ -332,8 +373,6 @@ macro(CMH_TARGET_LINK_LIBRARIES)
     else()
       target_link_libraries(${CMH_MODULE_NAME} PUBLIC ${ARGN})
     endif()
-  elseif(CMH_IS_HEADER_MODULE)
-    target_link_libraries(${CMH_MODULE_NAME} INTERFACE ${ARGN})
   else()
     message(WARNING "cmake_helper: cmh_target_link_libraries() called on target of unrecognized type.")
   endif()
@@ -387,6 +426,9 @@ macro(CMH_LINK_MODULES)
       if(CMH_IS_EXECUTABLE)
         # Iterate through the currently loaded cmake_helper modules.
         foreach(DEPENDENCY ${CMH_CURRENT_LOADED_MODULES})
+          # Set the compile options.
+          target_compile_options(${EXECUTABLE_NAME} PUBLIC ${${DEPENDENCY}_COMPILE_OPTIONS})
+
           # Set the compile definitions.
           target_compile_definitions(${EXECUTABLE_NAME} PUBLIC ${${DEPENDENCY}_COMPILE_DEFINITIONS})
 
@@ -456,6 +498,18 @@ macro(CMH_GET_TARGET_TYPE TARGET_NAME)
   # Determine whether or not the current module is a CUDA module.
   CMH_LIST_CONTAINS(CMH_IS_CUDA_MODULE ${CMH_MODULE_NAME} ${CMH_CUDA_MODULE_NAMES})
 endmacro(CMH_GET_TARGET_TYPE)
+
+# This macro detects if OpenMP has been requested and found, and if so, will automatically
+# add the required compile options to the module.
+macro(CMH_OPENMP_HELPER)
+  if(OPENMP_FOUND)
+    message("cmake_helper: Adding OpenMP compile options to module \"${CMH_MODULE_NAME}\".")
+    CMH_TARGET_COMPILE_OPTIONS(${OpenMP_CXX_FLAGS})
+    if(NOT ${OpenMP_C_FLAGS} STREQUAL ${OpenMP_CXX_FLAGS})
+      message(WARNING "cmake_helper: OpenMP_C_FLAGS != OpenMP_CXX_FLAGS, so OpenMP C-support may be broken.")
+    endif()
+  endif()
+endmacro(CMH_OPENMP_HELPER)
 
 macro(CMH_OPENCV_HELPER)
   # By default, OpenCV versions 2.4.8+ export its modules as shared library
