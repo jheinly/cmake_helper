@@ -3,6 +3,8 @@
 # TODO: verify that CUDA-specific settings aren't being accidentally propagated to other modules
 # TODO: add standalone CUDA executable support
 # TODO: allow the user to choose between different warning levels
+# TODO: add convenience macros for standalone executables
+# TODO: add unset() commands to remove internal temporary variables
 
 # CMake 3.0 is required as it added the add_library() INTERFACE option.
 cmake_minimum_required(VERSION 3.0)
@@ -60,6 +62,8 @@ endif()
 #   set(CMAKE_C_FLAGS ${CMAKE_C_FLAGS} CACHE STRING "Flags used by the compiler during all build types." FORCE)
 # endif()
 
+# This macro is called from a module's *-config.cmake file. It takes as input the names or
+# *-config.cmake paths to other cmake_helper modules on which this module depends.
 macro(CMH_NEW_MODULE_WITH_DEPENDENCIES)
   # Get the name of this module (based on the name of its config file).
   CMH_GET_MODULE_NAME(CMH_MODULE_NAME ${CMAKE_CURRENT_LIST_FILE})
@@ -112,6 +116,11 @@ macro(CMH_NEW_MODULE_WITH_DEPENDENCIES)
   endif()
 endmacro(CMH_NEW_MODULE_WITH_DEPENDENCIES)
 
+# Helper function that sets up the module (adds it to the currently building project,
+# stores its dependencies, and sets the required settings from its dependencies).
+# This is a function instead of a macro because a function creates a new scope, so
+# all temporary variables declared inside of this function won't be visibile by the
+# calling macro.
 function(CMH_ADD_MODULE_SUBDIRECTORY)
   # Include the CMakeLists.txt file from the current directory.
   set(CMH_IN_SUBDIRECTORY TRUE)
@@ -269,7 +278,7 @@ macro(CMH_END_ADD_MODULE)
   CMH_OPENMP_HELPER()
 endmacro(CMH_END_ADD_MODULE)
 
-# Convience macro to create a header module.
+# Convenience macro to create a header module.
 macro(CMH_ADD_HEADER_MODULE)
   CMH_BEGIN_ADD_MODULE(CMH_MODULE_SOURCE_FILES ${ARGN})
   add_custom_target(${CMH_MODULE_NAME}_custom_target SOURCES ${CMH_MODULE_SOURCE_FILES})
@@ -278,14 +287,14 @@ macro(CMH_ADD_HEADER_MODULE)
   CMH_END_ADD_MODULE()
 endmacro(CMH_ADD_HEADER_MODULE)
 
-# Convience macro to create a library module.
+# Convenience macro to create a library module.
 macro(CMH_ADD_LIBRARY_MODULE)
   CMH_BEGIN_ADD_MODULE(CMH_MODULE_SOURCE_FILES ${ARGN})
   add_library(${CMH_MODULE_NAME} ${CMH_MODULE_SOURCE_FILES})
   CMH_END_ADD_MODULE()
 endmacro(CMH_ADD_LIBRARY_MODULE)
 
-# Convience macro to create an executable module.
+# Convenience macro to create an executable module.
 macro(CMH_ADD_EXECUTABLE_MODULE)
   CMH_BEGIN_ADD_MODULE(CMH_MODULE_SOURCE_FILES ${ARGN})
   add_executable(${CMH_MODULE_NAME} ${CMH_MODULE_SOURCE_FILES})
@@ -293,7 +302,7 @@ macro(CMH_ADD_EXECUTABLE_MODULE)
   CMH_END_ADD_MODULE()
 endmacro(CMH_ADD_EXECUTABLE_MODULE)
 
-# Convience macro to create a CUDA library module.
+# Convenience macro to create a CUDA library module.
 macro(CMH_ADD_CUDA_LIBRARY_MODULE)
   CMH_BEGIN_ADD_MODULE(CMH_MODULE_SOURCE_FILES ${ARGN})
   CMH_PREPARE_CUDA_COMPILER(CMH_CUDA_COMPILER_DEFINITIONS)
@@ -302,7 +311,7 @@ macro(CMH_ADD_CUDA_LIBRARY_MODULE)
   CMH_END_ADD_MODULE()
 endmacro(CMH_ADD_CUDA_LIBRARY_MODULE)
 
-# Convience macro to create a CUDA executable module.
+# Convenience macro to create a CUDA executable module.
 macro(CMH_ADD_CUDA_EXECUTABLE_MODULE)
   CMH_BEGIN_ADD_MODULE(CMH_MODULE_SOURCE_FILES ${ARGN})
   CMH_PREPARE_CUDA_COMPILER(CMH_CUDA_COMPILER_DEFINITIONS)
@@ -311,7 +320,7 @@ macro(CMH_ADD_CUDA_EXECUTABLE_MODULE)
   CMH_END_ADD_MODULE()
 endmacro(CMH_ADD_CUDA_EXECUTABLE_MODULE)
 
-# Convience macro to set the compile options of a module.
+# Convenience macro to set the compile options of a module.
 macro(CMH_TARGET_COMPILE_OPTIONS)
   # Get the target type.
   CMH_GET_TARGET_TYPE(${CMH_MODULE_NAME})
@@ -326,7 +335,7 @@ macro(CMH_TARGET_COMPILE_OPTIONS)
   endif()
 endmacro(CMH_TARGET_COMPILE_OPTIONS)
 
-# Convience macro to set the compile definitions of a module.
+# Convenience macro to set the compile definitions of a module.
 macro(CMH_TARGET_COMPILE_DEFINITIONS)
   # Get the target type.
   CMH_GET_TARGET_TYPE(${CMH_MODULE_NAME})
@@ -341,7 +350,7 @@ macro(CMH_TARGET_COMPILE_DEFINITIONS)
   endif()
 endmacro(CMH_TARGET_COMPILE_DEFINITIONS)
 
-# Convience macro to set the include directories of a module.
+# Convenience macro to set the include directories of a module.
 macro(CMH_TARGET_INCLUDE_DIRECTORIES)
   # Get the target type.
   CMH_GET_TARGET_TYPE(${CMH_MODULE_NAME})
@@ -356,7 +365,7 @@ macro(CMH_TARGET_INCLUDE_DIRECTORIES)
   endif()
 endmacro(CMH_TARGET_INCLUDE_DIRECTORIES)
 
-# Convience macro to set the link libraries of a module.
+# Convenience macro to set the link libraries of a module.
 macro(CMH_TARGET_LINK_LIBRARIES)
   # Get the target type.
   CMH_GET_TARGET_TYPE(${CMH_MODULE_NAME})
