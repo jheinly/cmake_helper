@@ -4,6 +4,9 @@
 # TODO: add standalone CUDA executable support
 # TODO: allow the user to choose between different warning levels
 # TODO: add convenience macros for standalone executables
+# TODO: advanced examples need to be updated. To make this easier,
+#       CMH_BOOST_CUDA_FLAGS_HELPER should be combined with CMH_PREPARE_CUDA_COMPILER, and
+#       CMH_END_ADD_MODULE should be combined with CMH_LINK_MODULES
 
 # CMake 3.0 is required as it added the add_library() INTERFACE option.
 cmake_minimum_required(VERSION 3.0)
