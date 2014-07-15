@@ -4,7 +4,6 @@
 # TODO: add standalone CUDA executable support
 # TODO: allow the user to choose between different warning levels
 # TODO: add convenience macros for standalone executables
-# TODO: add macro to automatically set Boost compile definitions
 
 # CMake 3.0 is required as it added the add_library() INTERFACE option.
 cmake_minimum_required(VERSION 3.0)
@@ -284,7 +283,8 @@ endmacro(CMH_BEGIN_ADD_MODULE)
 
 # This macro is called at the end of a cmh_add_*_module() call.
 macro(CMH_END_ADD_MODULE)
-  CMH_OPENMP_HELPER()
+  CMH_OPENMP_FLAGS_HELPER()
+  CMH_BOOST_FLAGS_HELPER()
 endmacro(CMH_END_ADD_MODULE)
 
 # Convenience macro to create a header module.
@@ -314,6 +314,7 @@ endmacro(CMH_ADD_EXECUTABLE_MODULE)
 # Convenience macro to create a CUDA library module.
 macro(CMH_ADD_CUDA_LIBRARY_MODULE)
   CMH_BEGIN_ADD_MODULE(CMH_MODULE_SOURCE_FILES ${ARGN})
+  CMH_BOOST_CUDA_FLAGS_HELPER()
   CMH_PREPARE_CUDA_COMPILER(CMH_CUDA_COMPILER_DEFINITIONS)
   cuda_add_library(${CMH_MODULE_NAME} ${CMH_MODULE_SOURCE_FILES} OPTIONS ${CMH_CUDA_COMPILER_DEFINITIONS})
   CMH_FINALIZE_CUDA_LIBRARY()
@@ -323,6 +324,7 @@ endmacro(CMH_ADD_CUDA_LIBRARY_MODULE)
 # Convenience macro to create a CUDA executable module.
 macro(CMH_ADD_CUDA_EXECUTABLE_MODULE)
   CMH_BEGIN_ADD_MODULE(CMH_MODULE_SOURCE_FILES ${ARGN})
+  CMH_BOOST_CUDA_FLAGS_HELPER()
   CMH_PREPARE_CUDA_COMPILER(CMH_CUDA_COMPILER_DEFINITIONS)
   cuda_add_executable(${CMH_MODULE_NAME} ${CMH_MODULE_SOURCE_FILES} OPTIONS ${CMH_CUDA_COMPILER_DEFINITIONS})
   CMH_LINK_MODULES()
@@ -546,9 +548,9 @@ macro(CMH_UNSET_TARGET_TYPE)
   unset(CMH_IS_CUDA_MODULE)
 endmacro(CMH_UNSET_TARGET_TYPE)
 
-# This macro detects if OpenMP has been requested and found, and if so, will automatically
-# add the required compile options to the module.
-macro(CMH_OPENMP_HELPER)
+# This macro detects if OpenMP has been requested and found in the current module,
+# and if so, will automatically add the required compile options to the module.
+macro(CMH_OPENMP_FLAGS_HELPER)
   if(OPENMP_FOUND)
     message("cmake_helper: Adding OpenMP compile options to module \"${CMH_MODULE_NAME}\".")
     CMH_TARGET_COMPILE_OPTIONS(${OpenMP_CXX_FLAGS})
@@ -556,7 +558,7 @@ macro(CMH_OPENMP_HELPER)
       message(WARNING "cmake_helper: OpenMP_C_FLAGS != OpenMP_CXX_FLAGS, so OpenMP C-support may be broken.")
     endif()
   endif()
-endmacro(CMH_OPENMP_HELPER)
+endmacro(CMH_OPENMP_FLAGS_HELPER)
 
 macro(CMH_OPENCV_HELPER)
   # By default, OpenCV versions 2.4.8+ export its modules as shared library
@@ -572,7 +574,33 @@ macro(CMH_OPENCV_HELPER)
   endif()
 endmacro(CMH_OPENCV_HELPER)
 
-# This macro helps find the boost include and library directories.
+# This macro detects if Boost has been requested and found in the current module,
+# and if so, will automatically add useful Boost compile definitions to the module.
+macro(CMH_BOOST_FLAGS_HELPER)
+  CMH_GET_TARGET_TYPE(${CMH_MODULE_NAME})
+
+  # Test to see if Boost has been used in a find_package() statement. If this module
+  # is a CUDA module, then the Boost compile definitions will have already been handled
+  # by the cmh_boost_cuda_flags_helper() macro.
+  if(Boost_FOUND AND NOT CMH_IS_CUDA_MODULE)
+    message("cmake_helper: Adding Boost compile definitions to module \"${CMH_MODULE_NAME}\".")
+    CMH_TARGET_COMPILE_DEFINITIONS(-DBOOST_ALL_NO_LIB)
+  endif()
+
+  CMH_UNSET_TARGET_TYPE()
+endmacro(CMH_BOOST_FLAGS_HELPER)
+
+# This macro detects if Boost has been requested and found in the current module,
+# and if so, will automatically add useful Boost compile definitions to the module.
+macro(CMH_BOOST_CUDA_FLAGS_HELPER)
+  # Test to see if Boost has been used in a find_package() statement.
+  if(Boost_FOUND)
+    message("cmake_helper: Adding Boost compile definitions to CUDA module \"${CMH_MODULE_NAME}\".")
+    add_definitions(-DBOOST_ALL_NO_LIB)
+  endif()
+endmacro(CMH_BOOST_CUDA_FLAGS_HELPER)
+
+# This macro helps find the Boost include and library directories.
 macro(CMH_FIND_BOOST_HELPER)
   # Test to see if Boost has been used in a find_package() statement.
   if(DEFINED Boost_DIR)
