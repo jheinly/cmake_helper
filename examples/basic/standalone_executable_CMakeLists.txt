@@ -23,7 +23,9 @@ add_executable(${PROJECT_NAME}
 
 # Set the compile definitions for this executable.
 target_compile_definitions(${PROJECT_NAME} PUBLIC
-  # ex. -DBOOST_ALL_NO_LIB
+  # ex. BOOST_ALL_NO_LIB
+  # ex. PREPROCESSOR_FLAG
+  # ex. PREPROCESSOR_PATH="${CMAKE_CURRENT_LIST_DIR}/../path"
 )
 
 # Set the include directories for this executable.

@@ -584,7 +584,7 @@ macro(CMH_BOOST_FLAGS_HELPER)
   # by the cmh_boost_cuda_flags_helper() macro.
   if(Boost_FOUND AND NOT CMH_IS_CUDA_MODULE)
     message("cmake_helper: Adding Boost compile definitions to module \"${CMH_MODULE_NAME}\".")
-    CMH_TARGET_COMPILE_DEFINITIONS(-DBOOST_ALL_NO_LIB)
+    CMH_TARGET_COMPILE_DEFINITIONS(BOOST_ALL_NO_LIB)
   endif()
 
   CMH_UNSET_TARGET_TYPE()
