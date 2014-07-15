@@ -4,7 +4,7 @@
 # TODO: add standalone CUDA executable support
 # TODO: allow the user to choose between different warning levels
 # TODO: add convenience macros for standalone executables
-# TODO: add unset() commands to remove internal temporary variables
+# TODO: add macro to automatically set Boost compile definitions
 
 # CMake 3.0 is required as it added the add_library() INTERFACE option.
 cmake_minimum_required(VERSION 3.0)
@@ -91,6 +91,7 @@ macro(CMH_NEW_MODULE_WITH_DEPENDENCIES)
       CMH_GET_MODULE_NAME(DEPENDENCY_MODULE_NAME ${DEPENDENCY})
       CMH_LIST_APPEND_IF_UNIQUE(${CMH_MODULE_NAME}_MODULE_DEPENDENCIES ${DEPENDENCY_MODULE_NAME})
     endforeach()
+    unset(DEPENDENCY)
 
     # Iterate through the dependency modules and include them.
     foreach(DEPENDENCY ${${CMH_MODULE_NAME}_MODULE_DEPENDENCY_PATHS})
@@ -100,6 +101,8 @@ macro(CMH_NEW_MODULE_WITH_DEPENDENCIES)
         find_package(${DEPENDENCY})
       endif()
     endforeach()
+    unset(DEPENDENCY)
+    unset(${CMH_MODULE_NAME}_MODULE_DEPENDENCY_PATHS)
 
     # Set the name of this module again, as it will have been overwritten by
     # including any dependencies.
@@ -111,6 +114,7 @@ macro(CMH_NEW_MODULE_WITH_DEPENDENCIES)
         ${CMH_MODULE_NAME}_MODULE_DEPENDENCIES
         ${${DEPENDENCY}_MODULE_DEPENDENCIES})
     endforeach()
+    unset(DEPENDENCY)
 
     CMH_ADD_MODULE_SUBDIRECTORY()
   endif()
@@ -260,6 +264,9 @@ function(CMH_ADD_MODULE_SUBDIRECTORY)
       target_include_directories(${CMH_MODULE_NAME} PUBLIC ${${DEPENDENCY}_INCLUDE_DIRECTORIES})
     endif()
   endforeach()
+
+  unset(CMH_MODULE_NAME_DEBUG)
+  CMH_UNSET_TARGET_TYPE()
 endfunction(CMH_ADD_MODULE_SUBDIRECTORY)
 
 # This macro parses the arguments passed to a cmh_add_*_module() call.
@@ -271,6 +278,8 @@ macro(CMH_BEGIN_ADD_MODULE OUTPUT_NAME)
     source_group(${CMH_MODULE_NAME} FILES ${CMH_MODULE_UNPARSED_ARGUMENTS})
   endif()
   set(${OUTPUT_NAME} ${CMH_MODULE_UNPARSED_ARGUMENTS})
+  unset(CMH_MODULE_FOLDER_NAME)
+  unset(CMH_MODULE_UNPARSED_ARGUMENTS)
 endmacro(CMH_BEGIN_ADD_MODULE)
 
 # This macro is called at the end of a cmh_add_*_module() call.
@@ -333,6 +342,8 @@ macro(CMH_TARGET_COMPILE_OPTIONS)
   else()
     message(WARNING "cmake_helper: cmh_target_compile_options() called on target of unrecognized type.")
   endif()
+
+  CMH_UNSET_TARGET_TYPE()
 endmacro(CMH_TARGET_COMPILE_OPTIONS)
 
 # Convenience macro to set the compile definitions of a module.
@@ -348,6 +359,8 @@ macro(CMH_TARGET_COMPILE_DEFINITIONS)
   else()
     message(WARNING "cmake_helper: cmh_target_compile_definitions() called on target of unrecognized type.")
   endif()
+
+  CMH_UNSET_TARGET_TYPE()
 endmacro(CMH_TARGET_COMPILE_DEFINITIONS)
 
 # Convenience macro to set the include directories of a module.
@@ -363,6 +376,8 @@ macro(CMH_TARGET_INCLUDE_DIRECTORIES)
   else()
     message(WARNING "cmake_helper: cmh_target_include_directories() called on target of unrecognized type.")
   endif()
+
+  CMH_UNSET_TARGET_TYPE()
 endmacro(CMH_TARGET_INCLUDE_DIRECTORIES)
 
 # Convenience macro to set the link libraries of a module.
@@ -385,6 +400,8 @@ macro(CMH_TARGET_LINK_LIBRARIES)
   else()
     message(WARNING "cmake_helper: cmh_target_link_libraries() called on target of unrecognized type.")
   endif()
+
+  CMH_UNSET_TARGET_TYPE()
 endmacro(CMH_TARGET_LINK_LIBRARIES)
 
 # This macro exists to enable functionality for commands that must be run in
@@ -416,9 +433,12 @@ macro(CMH_LINK_MODULES)
           endif()
           add_dependencies(${CMH_MODULE_NAME} ${DEPENDENCY})
         endforeach()
+        unset(DEPENDENCY)
       else()
         message(WARNING "cmake_helper: cmh_link_modules() called on target that was not an executable.")
       endif()
+
+      CMH_UNSET_TARGET_TYPE()
     else()
       message(WARNING "cmake_helper: cmh_link_modules() called with argument(s) when none were expected.")
     endif()
@@ -448,13 +468,19 @@ macro(CMH_LINK_MODULES)
           target_link_libraries(${EXECUTABLE_NAME} PUBLIC ${${DEPENDENCY}_LINK_LIBRARIES})
           add_dependencies(${EXECUTABLE_NAME} ${DEPENDENCY})
         endforeach()
+        unset(DEPENDENCY)
       else()
         message(WARNING "cmake_helper: cmh_link_modules() called on target that was not an executable.")
       endif()
+
+      CMH_UNSET_TARGET_TYPE()
     else()
       message(WARNING "cmake_helper: cmh_link_modules() expected 1 argument, but received ${LIST_LEN}.")
     endif()
   endif()
+
+  unset(EXECUTABLE_NAME)
+  unset(LIST_LEN)
 endmacro(CMH_LINK_MODULES)
 
 # This macro converts a module's config path (either absolute, relative,
@@ -481,6 +507,7 @@ macro(CMH_LIST_CONTAINS OUTPUT_NAME QUERY_VALUE)
       set(${OUTPUT_NAME} TRUE)
     endif()
   endforeach()
+  unset(VALUE)
 endmacro(CMH_LIST_CONTAINS)
 
 # This macro will only append to the provided list if the given values in ${ARGN}
@@ -491,7 +518,9 @@ macro(CMH_LIST_APPEND_IF_UNIQUE LIST_NAME)
     if(NOT ${ALREADY_EXISTS})
       list(APPEND ${LIST_NAME} ${VALUE_TO_APPEND})
     endif()
+    unset(ALREADY_EXISTS)
   endforeach()
+  unset(VALUE_TO_APPEND)
 endmacro(CMH_LIST_APPEND_IF_UNIQUE)
 
 # This macro will determine the type of current module.
@@ -503,10 +532,19 @@ macro(CMH_GET_TARGET_TYPE TARGET_NAME)
   CMH_LIST_CONTAINS(CMH_IS_LIBRARY ${CMH_TARGET_TYPE} "STATIC_LIBRARY" "MODULE_LIBRARY" "SHARED_LIBRARY")
   CMH_LIST_CONTAINS(CMH_IS_EXECUTABLE ${CMH_TARGET_TYPE} "EXECUTABLE")
   CMH_LIST_CONTAINS(CMH_IS_HEADER_MODULE ${CMH_TARGET_TYPE} "INTERFACE_LIBRARY")
+  unset(CMH_TARGET_TYPE)
 
   # Determine whether or not the current module is a CUDA module.
   CMH_LIST_CONTAINS(CMH_IS_CUDA_MODULE ${CMH_MODULE_NAME} ${CMH_CUDA_MODULE_NAMES})
 endmacro(CMH_GET_TARGET_TYPE)
+
+# Undefine (unset) the variables that are created by the cmh_get_target_type() macro.
+macro(CMH_UNSET_TARGET_TYPE)
+  unset(CMH_IS_LIBRARY)
+  unset(CMH_IS_EXECUTABLE)
+  unset(CMH_IS_HEADER_MODULE)
+  unset(CMH_IS_CUDA_MODULE)
+endmacro(CMH_UNSET_TARGET_TYPE)
 
 # This macro detects if OpenMP has been requested and found, and if so, will automatically
 # add the required compile options to the module.
@@ -579,6 +617,7 @@ macro(CMH_PREPARE_CUDA_COMPILER OUTPUT_NAME)
   else()
     set(${OUTPUT_NAME} "-arch=compute_${CAPABILITY} -code=sm_${CAPABILITY},compute_${CAPABILITY}")
   endif()
+  unset(CAPABILITY)
 
   # Tell the CUDA compiler to provide verbose output, specifically so that
   # the register and shared memory usage is printed when compiling.
@@ -594,8 +633,10 @@ macro(CMH_PREPARE_CUDA_COMPILER OUTPUT_NAME)
       # will pass to the CUDA compiler.
       list(APPEND ${OUTPUT_NAME} "-D${DEFINITION}")
     endforeach()
+    unset(DEFINITION)
     cuda_include_directories(${${DEPENDENCY}_INCLUDE_DIRECTORIES})
   endforeach()
+  unset(DEPENDENCY)
 
   # Keep a list of the current modules that are actually CUDA targets.
   if(NOT CMH_CUDA_MODULE_NAMES)
@@ -668,5 +709,6 @@ macro(CMH_FIND_CUDA_SDK_HELPER)
         endif()
       endif()
     endif()
+    unset(CMH_FIND_CUDA_SDK)
   endif()
 endmacro(CMH_FIND_CUDA_SDK_HELPER)

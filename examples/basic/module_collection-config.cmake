@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.0)
 find_package(cmake_helper REQUIRED)
 
 # Get the name of this module collection.
-CMH_GET_MODULE_NAME(CMH_MODULE_COLLECTION_NAME ${CMAKE_CURRENT_LIST_FILE})
+cmh_get_module_name(CMH_MODULE_COLLECTION_NAME ${CMAKE_CURRENT_LIST_FILE})
 
 if(${CMH_MODULE_COLLECTION_NAME}_FIND_COMPONENTS)
   # Iterate over the modules that were specified as components.
