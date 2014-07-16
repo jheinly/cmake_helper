@@ -549,7 +549,7 @@ endmacro(CMH_UNSET_TARGET_TYPE)
 
 # This macro detects if OpenMP has been requested and found in the current module,
 # and if so, will automatically add the required compile options to the module.
-macro(CMH_OPENMP_FLAGS_HELPER TARGET_NAME)
+macro(CMH_OPENMP_FLAGS_HELPER)
   set(IS_STANDALONE TRUE)
   set(TARGET_NAME ${ARGN})
   list(LENGTH TARGET_NAME LIST_LEN)
@@ -610,10 +610,16 @@ macro(CMH_BOOST_FLAGS_HELPER)
   if(Boost_FOUND AND NOT CMH_IS_CUDA_MODULE)
     if(${IS_STANDALONE})
       message("cmake_helper: Adding Boost compile definitions to target \"${TARGET_NAME}\".")
-      target_compile_definitions(${TARGET_NAME} PUBLIC BOOST_ALL_NO_LIB BOOST_ALL_DYN_LINK)
+      target_compile_definitions(${TARGET_NAME} PUBLIC
+        BOOST_ALL_NO_LIB
+        #BOOST_ALL_DYN_LINK
+      )
     else()
       message("cmake_helper: Adding Boost compile definitions to module \"${TARGET_NAME}\".")
-      CMH_TARGET_COMPILE_DEFINITIONS(BOOST_ALL_NO_LIB BOOST_ALL_DYN_LINK)
+      CMH_TARGET_COMPILE_DEFINITIONS(
+        BOOST_ALL_NO_LIB
+        #BOOST_ALL_DYN_LINK
+      )
     endif()
   endif()
 
@@ -629,7 +635,10 @@ macro(CMH_BOOST_CUDA_FLAGS_HELPER)
   # Test to see if Boost has been used in a find_package() statement.
   if(Boost_FOUND)
     message("cmake_helper: Adding Boost compile definitions to CUDA module \"${CMH_MODULE_NAME}\".")
-    add_definitions(-DBOOST_ALL_NO_LIB -DBOOST_ALL_DYN_LINK)
+    add_definitions(
+      -DBOOST_ALL_NO_LIB
+      #-DBOOST_ALL_DYN_LINK
+    )
   endif()
 endmacro(CMH_BOOST_CUDA_FLAGS_HELPER)
 
