@@ -426,6 +426,10 @@ endmacro(CMH_END_MODULE)
 
 # This macro links dependency modules to a standalone executable.
 macro(CMH_LINK_MODULES EXECUTABLE_NAME)
+  CMH_FIND_BOOST_HELPER(TRUE)
+  CMH_BOOST_FLAGS_HELPER(${EXECUTABLE_NAME})
+  CMH_OPENMP_FLAGS_HELPER(${EXECUTABLE_NAME})
+
   # Get the type of the target (library, executable, etc).
   CMH_GET_TARGET_TYPE(${EXECUTABLE_NAME})
 
@@ -447,7 +451,6 @@ macro(CMH_LINK_MODULES EXECUTABLE_NAME)
 
   CMH_UNSET_TARGET_TYPE()
   unset(EXECUTABLE_NAME)
-  unset(LIST_LEN)
 endmacro(CMH_LINK_MODULES)
 
 # This macro sets the output directories for libraris and executables to
@@ -533,7 +536,7 @@ macro(CMH_GET_TARGET_TYPE TARGET_NAME)
   unset(CMH_TARGET_TYPE)
 
   # Determine whether or not the current module is a CUDA module.
-  CMH_LIST_CONTAINS(CMH_IS_CUDA_MODULE ${CMH_MODULE_NAME} ${CMH_CUDA_MODULE_NAMES})
+  CMH_LIST_CONTAINS(CMH_IS_CUDA_MODULE ${TARGET_NAME} ${CMH_CUDA_MODULE_NAMES})
 endmacro(CMH_GET_TARGET_TYPE)
 
 # Undefine (unset) the variables that are created by the cmh_get_target_type() macro.
@@ -546,14 +549,31 @@ endmacro(CMH_UNSET_TARGET_TYPE)
 
 # This macro detects if OpenMP has been requested and found in the current module,
 # and if so, will automatically add the required compile options to the module.
-macro(CMH_OPENMP_FLAGS_HELPER)
+macro(CMH_OPENMP_FLAGS_HELPER TARGET_NAME)
+  set(IS_STANDALONE TRUE)
+  set(TARGET_NAME ${ARGN})
+  list(LENGTH TARGET_NAME LIST_LEN)
+  if(NOT ${LIST_LEN} EQUAL 1)
+    set(IS_STANDALONE FALSE)
+    set(TARGET_NAME ${CMH_MODULE_NAME})
+  endif()
+
   if(OPENMP_FOUND)
-    message("cmake_helper: Adding OpenMP compile options to module \"${CMH_MODULE_NAME}\".")
-    CMH_TARGET_COMPILE_OPTIONS(${OpenMP_CXX_FLAGS})
+    if(IS_STANDALONE)
+      message("cmake_helper: Adding OpenMP compile options to target \"${TARGET_NAME}\".")
+      target_compile_options(${TARGET_NAME} PUBLIC ${OpenMP_CXX_FLAGS})
+    else()
+      message("cmake_helper: Adding OpenMP compile options to module \"${TARGET_NAME}\".")
+      CMH_TARGET_COMPILE_OPTIONS(${OpenMP_CXX_FLAGS})
+    endif()
     if(NOT ${OpenMP_C_FLAGS} STREQUAL ${OpenMP_CXX_FLAGS})
       message(WARNING "cmake_helper: OpenMP_C_FLAGS != OpenMP_CXX_FLAGS, so OpenMP C-support may be broken.")
     endif()
   endif()
+
+  unset(IS_STANDALONE)
+  unset(TARGET_NAME)
+  unset(LIST_LEN)
 endmacro(CMH_OPENMP_FLAGS_HELPER)
 
 # This macro helps set up OpenCV for use with cmake_helper.
@@ -574,16 +594,32 @@ endmacro(CMH_OPENCV_HELPER)
 # This macro detects if Boost has been requested and found in the current module,
 # and if so, will automatically add useful Boost compile definitions to the module.
 macro(CMH_BOOST_FLAGS_HELPER)
-  CMH_GET_TARGET_TYPE(${CMH_MODULE_NAME})
+  set(IS_STANDALONE TRUE)
+  set(TARGET_NAME ${ARGN})
+  list(LENGTH TARGET_NAME LIST_LEN)
+  if(NOT ${LIST_LEN} EQUAL 1)
+    set(IS_STANDALONE FALSE)
+    set(TARGET_NAME ${CMH_MODULE_NAME})
+  endif()
+
+  CMH_GET_TARGET_TYPE(${TARGET_NAME})
 
   # Test to see if Boost has been used in a find_package() statement. If this module
   # is a CUDA module, then the Boost compile definitions will have already been handled
   # by the cmh_boost_cuda_flags_helper() macro.
   if(Boost_FOUND AND NOT CMH_IS_CUDA_MODULE)
-    message("cmake_helper: Adding Boost compile definitions to module \"${CMH_MODULE_NAME}\".")
-    CMH_TARGET_COMPILE_DEFINITIONS(BOOST_ALL_NO_LIB)
+    if(${IS_STANDALONE})
+      message("cmake_helper: Adding Boost compile definitions to target \"${TARGET_NAME}\".")
+      target_compile_definitions(${TARGET_NAME} PUBLIC BOOST_ALL_NO_LIB)
+    else()
+      message("cmake_helper: Adding Boost compile definitions to module \"${TARGET_NAME}\".")
+      CMH_TARGET_COMPILE_DEFINITIONS(BOOST_ALL_NO_LIB)
+    endif()
   endif()
 
+  unset(IS_STANDALONE)
+  unset(TARGET_NAME)
+  unset(LIST_LEN)
   CMH_UNSET_TARGET_TYPE()
 endmacro(CMH_BOOST_FLAGS_HELPER)
 
@@ -599,6 +635,12 @@ endmacro(CMH_BOOST_CUDA_FLAGS_HELPER)
 
 # This macro helps find the Boost include and library directories.
 macro(CMH_FIND_BOOST_HELPER)
+  set(IS_STANDALONE ${ARGN})
+  list(LENGTH IS_STANDALONE LIST_LEN)
+  if(NOT ${LIST_LEN} EQUAL 1)
+    set(IS_STANDALONE FALSE)
+  endif()
+
   # Test to see if Boost has been used in a find_package() statement.
   if(DEFINED Boost_DIR)
     # Test to see if the Boost include directory has been located or set.
@@ -606,9 +648,11 @@ macro(CMH_FIND_BOOST_HELPER)
       # If the Boost include directory is not set, make sure that we print the message below only once.
       if(NOT CMH_FIND_BOOST_HELPER_MESSAGE)
         set(CMH_FIND_BOOST_HELPER_MESSAGE TRUE)
-        # Set the variable in the parent scope as well as this macro is typically called from within
-        # the cmh_add_module_subdirectory() function which defines its own scope.
-        set(CMH_FIND_BOOST_HELPER_MESSAGE TRUE PARENT_SCOPE)
+        if(NOT ${IS_STANDALONE})
+          # Set the variable in the parent scope as well as this macro is typically called from within
+          # the cmh_add_module_subdirectory() function which defines its own scope.
+          set(CMH_FIND_BOOST_HELPER_MESSAGE TRUE PARENT_SCOPE)
+        endif()
         message("cmake_helper: If necessary, provide hints for the location of the Boost root and library directories in CMH_BOOST_ROOT_DIR and CMH_BOOST_LIBRARY_DIR.")
       endif()
     endif()
@@ -624,6 +668,8 @@ macro(CMH_FIND_BOOST_HELPER)
       set(BOOST_LIBRARYDIR ${CMH_BOOST_LIBRARY_DIR} CACHE INTERNAL "Hint for Boost library directory location.")
     endif()
   endif()
+  unset(IS_STANDALONE)
+  unset(LIST_LEN)
 endmacro(CMH_FIND_BOOST_HELPER)
 
 # This macro requests the user to specify the default compute capability of their GPU. Given
