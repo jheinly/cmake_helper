@@ -467,6 +467,20 @@ macro(CMH_SET_OUTPUT_DIRECTORIES)
   set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/bin/Release)
 endmacro(CMH_SET_OUTPUT_DIRECTORIES)
 
+# This macro will determine if the current build is a 64-bit build.
+macro(CMH_TEST_IF_64_BIT OUTPUT_NAME)
+  if(MSVC AND CMAKE_CL_64)
+    set(${OUTPUT_NAME} TRUE)
+    message("cmake_helper: 64-bit build detected")
+  elseif(CMAKE_SIZEOF_VOID_P MATCHES 8)
+    set(${OUTPUT_NAME} TRUE)
+    message("cmake_helper: 64-bit build detected")
+  else()
+    set(${OUTPUT_NAME} FALSE)
+    message("cmake_helper: 32-bit build detected")
+  endif()
+endmacro(CMH_TEST_IF_64_BIT)
+
 # This macro converts a module's config path (either absolute, relative,
 # or just the basename) into just the name of the module. It does this by
 # removing all other parts of the config path except the basename. The resulting
