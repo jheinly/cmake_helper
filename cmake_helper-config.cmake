@@ -3,10 +3,7 @@
 # TODO: verify that CUDA-specific settings aren't being accidentally propagated to other modules
 # TODO: add standalone CUDA executable support
 # TODO: allow the user to choose between different warning levels
-# TODO: add convenience macros for standalone executables
-# TODO: advanced examples need to be updated. To make this easier,
-#       CMH_BOOST_CUDA_FLAGS_HELPER should be combined with CMH_PREPARE_CUDA_COMPILER, and
-#       CMH_END_ADD_MODULE should be combined with CMH_LINK_MODULES
+# TODO: add convenience macros for standalone executables (ex. setting output binary folder)
 
 # CMake 3.0 is required as it added the add_library() INTERFACE option.
 cmake_minimum_required(VERSION 3.0)
@@ -129,9 +126,7 @@ endmacro(CMH_NEW_MODULE_WITH_DEPENDENCIES)
 # calling macro.
 function(CMH_ADD_MODULE_SUBDIRECTORY)
   # Include the CMakeLists.txt file from the current directory.
-  set(CMH_IN_SUBDIRECTORY TRUE)
   add_subdirectory(${CMAKE_CURRENT_LIST_DIR} ${CMAKE_BINARY_DIR}/${CMH_MODULE_NAME})
-  set(CMH_IN_SUBDIRECTORY FALSE)
 
   # Help set up OpenCV.
   CMH_OPENCV_HELPER()
@@ -284,54 +279,43 @@ macro(CMH_BEGIN_ADD_MODULE OUTPUT_NAME)
   unset(CMH_MODULE_UNPARSED_ARGUMENTS)
 endmacro(CMH_BEGIN_ADD_MODULE)
 
-# This macro is called at the end of a cmh_add_*_module() call.
-macro(CMH_END_ADD_MODULE)
-  CMH_OPENMP_FLAGS_HELPER()
-  CMH_BOOST_FLAGS_HELPER()
-endmacro(CMH_END_ADD_MODULE)
-
 # Convenience macro to create a header module.
 macro(CMH_ADD_HEADER_MODULE)
   CMH_BEGIN_ADD_MODULE(CMH_MODULE_SOURCE_FILES ${ARGN})
   add_custom_target(${CMH_MODULE_NAME}_custom_target SOURCES ${CMH_MODULE_SOURCE_FILES})
   set_target_properties(${CMH_MODULE_NAME}_custom_target PROPERTIES PROJECT_LABEL ${CMH_MODULE_NAME})
   add_library(${CMH_MODULE_NAME} INTERFACE)
-  CMH_END_ADD_MODULE()
+  CMH_END_MODULE()
 endmacro(CMH_ADD_HEADER_MODULE)
 
 # Convenience macro to create a library module.
 macro(CMH_ADD_LIBRARY_MODULE)
   CMH_BEGIN_ADD_MODULE(CMH_MODULE_SOURCE_FILES ${ARGN})
   add_library(${CMH_MODULE_NAME} ${CMH_MODULE_SOURCE_FILES})
-  CMH_END_ADD_MODULE()
+  CMH_END_MODULE()
 endmacro(CMH_ADD_LIBRARY_MODULE)
 
 # Convenience macro to create an executable module.
 macro(CMH_ADD_EXECUTABLE_MODULE)
   CMH_BEGIN_ADD_MODULE(CMH_MODULE_SOURCE_FILES ${ARGN})
   add_executable(${CMH_MODULE_NAME} ${CMH_MODULE_SOURCE_FILES})
-  CMH_LINK_MODULES()
-  CMH_END_ADD_MODULE()
+  CMH_END_MODULE()
 endmacro(CMH_ADD_EXECUTABLE_MODULE)
 
 # Convenience macro to create a CUDA library module.
 macro(CMH_ADD_CUDA_LIBRARY_MODULE)
   CMH_BEGIN_ADD_MODULE(CMH_MODULE_SOURCE_FILES ${ARGN})
-  CMH_BOOST_CUDA_FLAGS_HELPER()
   CMH_PREPARE_CUDA_COMPILER(CMH_CUDA_COMPILER_DEFINITIONS)
   cuda_add_library(${CMH_MODULE_NAME} ${CMH_MODULE_SOURCE_FILES} OPTIONS ${CMH_CUDA_COMPILER_DEFINITIONS})
-  CMH_FINALIZE_CUDA_LIBRARY()
-  CMH_END_ADD_MODULE()
+  CMH_END_MODULE()
 endmacro(CMH_ADD_CUDA_LIBRARY_MODULE)
 
 # Convenience macro to create a CUDA executable module.
 macro(CMH_ADD_CUDA_EXECUTABLE_MODULE)
   CMH_BEGIN_ADD_MODULE(CMH_MODULE_SOURCE_FILES ${ARGN})
-  CMH_BOOST_CUDA_FLAGS_HELPER()
   CMH_PREPARE_CUDA_COMPILER(CMH_CUDA_COMPILER_DEFINITIONS)
   cuda_add_executable(${CMH_MODULE_NAME} ${CMH_MODULE_SOURCE_FILES} OPTIONS ${CMH_CUDA_COMPILER_DEFINITIONS})
-  CMH_LINK_MODULES()
-  CMH_END_ADD_MODULE()
+  CMH_END_MODULE()
 endmacro(CMH_ADD_CUDA_EXECUTABLE_MODULE)
 
 # Convenience macro to set the compile options of a module.
@@ -409,81 +393,60 @@ macro(CMH_TARGET_LINK_LIBRARIES)
   CMH_UNSET_TARGET_TYPE()
 endmacro(CMH_TARGET_LINK_LIBRARIES)
 
-# This macro exists to enable functionality for commands that must be run in
-# the same subdirectory as the given target, ex. target_link_libraries().
-# It should be called at the end of an executable (either standalone or a module).
-macro(CMH_LINK_MODULES)
-  # Get the number of input arguments.
-  set(EXECUTABLE_NAME ${ARGN})
-  list(LENGTH EXECUTABLE_NAME LIST_LEN)
+# This macro should be called at the end of each cmake_helper module,
+# as it sets up those settings that can only be set inside the same
+# scope of the module's CMakeLists.txt file.
+macro(CMH_END_MODULE)
+  # Set up the OpenMP and Boost flags if required.
+  CMH_OPENMP_FLAGS_HELPER()
+  CMH_BOOST_FLAGS_HELPER()
 
-  # If this command is called from within a cmake_helper module's subdirectory,
-  # then we expect there to be no arguments, and we simply link this module's
-  # dependencies to it.
-  if(CMH_IN_SUBDIRECTORY)
-    if(${LIST_LEN} EQUAL 0)
-      # Get the type of the target (library, executable, etc).
-      CMH_GET_TARGET_TYPE(${CMH_MODULE_NAME})
+  # Get the type of the target (library, executable, etc).
+  CMH_GET_TARGET_TYPE(${CMH_MODULE_NAME})
 
-      # If this module is an executable, link it to the libraries of its dependencies.
-      if(CMH_IS_EXECUTABLE)
-        foreach(DEPENDENCY ${${CMH_MODULE_NAME}_MODULE_DEPENDENCIES})
-          if(CMH_IS_CUDA_MODULE)
-            # If this module is a CUDA module we need to use the default
-            # target_link_libraries syntax as FindCUDA.cmake hasn't been
-            # updated to support the new INTERFACE syntax yet.
-            target_link_libraries(${CMH_MODULE_NAME} ${${DEPENDENCY}_LINK_LIBRARIES})
-          else()
-            target_link_libraries(${CMH_MODULE_NAME} PUBLIC ${${DEPENDENCY}_LINK_LIBRARIES})
-          endif()
-          add_dependencies(${CMH_MODULE_NAME} ${DEPENDENCY})
-        endforeach()
-        unset(DEPENDENCY)
+  if(CMH_IS_LIBRARY AND CMH_IS_CUDA_MODULE)
+    CMH_FINALIZE_CUDA_LIBRARY()
+  elseif(CMH_IS_EXECUTABLE)
+    # If this module is an executable, link it to the libraries of its dependencies.
+    foreach(DEPENDENCY ${${CMH_MODULE_NAME}_MODULE_DEPENDENCIES})
+      if(CMH_IS_CUDA_MODULE)
+        # If this module is a CUDA module we need to use the default
+        # target_link_libraries syntax as FindCUDA.cmake hasn't been
+        # updated to support the new INTERFACE syntax yet.
+        target_link_libraries(${CMH_MODULE_NAME} ${${DEPENDENCY}_LINK_LIBRARIES})
       else()
-        message(WARNING "cmake_helper: cmh_link_modules() called on target that was not an executable.")
+        target_link_libraries(${CMH_MODULE_NAME} PUBLIC ${${DEPENDENCY}_LINK_LIBRARIES})
       endif()
-
-      CMH_UNSET_TARGET_TYPE()
-    else()
-      message(WARNING "cmake_helper: cmh_link_modules() called with argument(s) when none were expected.")
-    endif()
-  else()
-    # If this command is not called from within a module's subdirectory, then we
-    # expect that it is being called from a standalone executable, and the single
-    # argument to this command is the name of the executable we wish to link all
-    # of the modules to.
-    if(${LIST_LEN} EQUAL 1)
-      # Get the type of the target (library, executable, etc).
-      CMH_GET_TARGET_TYPE(${EXECUTABLE_NAME})
-
-      # If this target is an executable, set up all of its dependencies.
-      if(CMH_IS_EXECUTABLE)
-        # Iterate through the currently loaded cmake_helper modules.
-        foreach(DEPENDENCY ${CMH_CURRENT_LOADED_MODULES})
-          # Set the compile options.
-          target_compile_options(${EXECUTABLE_NAME} PUBLIC ${${DEPENDENCY}_COMPILE_OPTIONS})
-
-          # Set the compile definitions.
-          target_compile_definitions(${EXECUTABLE_NAME} PUBLIC ${${DEPENDENCY}_COMPILE_DEFINITIONS})
-
-          # Set the include directories.
-          target_include_directories(${EXECUTABLE_NAME} PUBLIC ${${DEPENDENCY}_INCLUDE_DIRECTORIES})
-
-          # Link the libraries, and add the dependency.
-          target_link_libraries(${EXECUTABLE_NAME} PUBLIC ${${DEPENDENCY}_LINK_LIBRARIES})
-          add_dependencies(${EXECUTABLE_NAME} ${DEPENDENCY})
-        endforeach()
-        unset(DEPENDENCY)
-      else()
-        message(WARNING "cmake_helper: cmh_link_modules() called on target that was not an executable.")
-      endif()
-
-      CMH_UNSET_TARGET_TYPE()
-    else()
-      message(WARNING "cmake_helper: cmh_link_modules() expected 1 argument, but received ${LIST_LEN}.")
-    endif()
+      add_dependencies(${CMH_MODULE_NAME} ${DEPENDENCY})
+    endforeach()
+    unset(DEPENDENCY)
   endif()
 
+  CMH_UNSET_TARGET_TYPE()
+endmacro(CMH_END_MODULE)
+
+# This macro links dependency modules to a standalone executable.
+macro(CMH_LINK_MODULES EXECUTABLE_NAME)
+  # Get the type of the target (library, executable, etc).
+  CMH_GET_TARGET_TYPE(${EXECUTABLE_NAME})
+
+  # If this target is an executable, set up all of its dependencies.
+  if(CMH_IS_EXECUTABLE)
+    # Iterate through the currently loaded cmake_helper modules.
+    foreach(DEPENDENCY ${CMH_CURRENT_LOADED_MODULES})
+      # Propagate this dependency module's requirements to the executable.
+      target_compile_options(${EXECUTABLE_NAME} PUBLIC ${${DEPENDENCY}_COMPILE_OPTIONS})
+      target_compile_definitions(${EXECUTABLE_NAME} PUBLIC ${${DEPENDENCY}_COMPILE_DEFINITIONS})
+      target_include_directories(${EXECUTABLE_NAME} PUBLIC ${${DEPENDENCY}_INCLUDE_DIRECTORIES})
+      target_link_libraries(${EXECUTABLE_NAME} PUBLIC ${${DEPENDENCY}_LINK_LIBRARIES})
+      add_dependencies(${EXECUTABLE_NAME} ${DEPENDENCY})
+    endforeach()
+    unset(DEPENDENCY)
+  else()
+    message(WARNING "cmake_helper: cmh_link_modules() called on target that was not an executable.")
+  endif()
+
+  CMH_UNSET_TARGET_TYPE()
   unset(EXECUTABLE_NAME)
   unset(LIST_LEN)
 endmacro(CMH_LINK_MODULES)
@@ -563,6 +526,7 @@ macro(CMH_OPENMP_FLAGS_HELPER)
   endif()
 endmacro(CMH_OPENMP_FLAGS_HELPER)
 
+# This macro helps set up OpenCV for use with cmake_helper.
 macro(CMH_OPENCV_HELPER)
   # By default, OpenCV versions 2.4.8+ export its modules as shared library
   # targets, which cmake_helper modules can then link to. However, these
@@ -638,6 +602,9 @@ endmacro(CMH_FIND_BOOST_HELPER)
 # to the CUDA compiler. Additionally, this macro will setup the proper include directories
 # and compile definitions for the dependencies of this module.
 macro(CMH_PREPARE_CUDA_COMPILER OUTPUT_NAME)
+  # We need to set Boost compile definitions before creating a CUDA target.
+  CMH_BOOST_CUDA_FLAGS_HELPER()
+
   if(NOT CMH_CUDA_COMPUTE_CAPABILITY)
     set(CMH_CUDA_COMPUTE_CAPABILITY "1.0" CACHE STRING "CUDA compute capability of target GPU device.")
     set_property(CACHE CMH_CUDA_COMPUTE_CAPABILITY PROPERTY STRINGS 1.0 1.1 1.2 1.3 2.0 2.1 3.0 3.5 5.0)

@@ -38,3 +38,6 @@ target_link_libraries(${CMH_MODULE_NAME} INTERFACE
   # ex. ${Boost_LIBRARIES}
   # ex. ${OpenCV_LIBS}
 )
+
+# Finalize this module.
+cmh_end_module()

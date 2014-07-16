@@ -36,11 +36,11 @@ cmh_prepare_cuda_compiler(CMH_CUDA_COMPILER_DEFINITIONS)
 # Create a static CUDA library.
 cuda_add_library(${CMH_MODULE_NAME} ${SOURCE_FILES} OPTIONS ${CMH_CUDA_COMPILER_DEFINITIONS})
 
-# Finalize the CUDA library settings.
-cmh_finalize_cuda_library()
-
 # Set the libraries that need to be linked to this module.
 target_link_libraries(${CMH_MODULE_NAME}
   # ex. ${Boost_LIBRARIES}
   # ex. ${OpenCV_LIBS}
 )
+
+# Finalize this module.
+cmh_end_module()
