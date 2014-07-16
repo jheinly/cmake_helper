@@ -3,7 +3,6 @@
 # TODO: verify that CUDA-specific settings aren't being accidentally propagated to other modules
 # TODO: add standalone CUDA executable support
 # TODO: allow the user to choose between different warning levels
-# TODO: add convenience macros for standalone executables (ex. setting output binary folder)
 
 # CMake 3.0 is required as it added the add_library() INTERFACE option.
 cmake_minimum_required(VERSION 3.0)
@@ -450,6 +449,23 @@ macro(CMH_LINK_MODULES EXECUTABLE_NAME)
   unset(EXECUTABLE_NAME)
   unset(LIST_LEN)
 endmacro(CMH_LINK_MODULES)
+
+# This macro sets the output directories for libraris and executables to
+# be in lib and bin folders respectively. It also sets the debug and
+# release folders to Debug and Release.
+macro(CMH_SET_OUTPUT_DIRECTORIES)
+  set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+  set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/lib/Debug)
+  set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/lib/Release)
+
+  set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+  set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/lib/Debug)
+  set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/lib/Release)
+
+  set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+  set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/bin/Debug)
+  set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/bin/Release)
+endmacro(CMH_SET_OUTPUT_DIRECTORIES)
 
 # This macro converts a module's config path (either absolute, relative,
 # or just the basename) into just the name of the module. It does this by
