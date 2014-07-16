@@ -1,3 +1,7 @@
+# NOTE: This file should not be executed directly using CMake, but instead
+#       should be referenced via a find_package() command using the name
+#       of the corresponding *-config.cmake file in the same directory.
+
 cmake_minimum_required(VERSION 3.0)
 
 # Find 3rd-party packages.
