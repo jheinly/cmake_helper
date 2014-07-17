@@ -612,13 +612,13 @@ macro(CMH_BOOST_FLAGS_HELPER)
       message("cmake_helper: Adding Boost compile definitions to target \"${TARGET_NAME}\".")
       target_compile_definitions(${TARGET_NAME} PUBLIC
         BOOST_ALL_NO_LIB
-        #BOOST_ALL_DYN_LINK
+        BOOST_ALL_DYN_LINK
       )
     else()
       message("cmake_helper: Adding Boost compile definitions to module \"${TARGET_NAME}\".")
       CMH_TARGET_COMPILE_DEFINITIONS(
         BOOST_ALL_NO_LIB
-        #BOOST_ALL_DYN_LINK
+        BOOST_ALL_DYN_LINK
       )
     endif()
   endif()
@@ -637,7 +637,7 @@ macro(CMH_BOOST_CUDA_FLAGS_HELPER)
     message("cmake_helper: Adding Boost compile definitions to CUDA module \"${CMH_MODULE_NAME}\".")
     add_definitions(
       -DBOOST_ALL_NO_LIB
-      #-DBOOST_ALL_DYN_LINK
+      -DBOOST_ALL_DYN_LINK
     )
   endif()
 endmacro(CMH_BOOST_CUDA_FLAGS_HELPER)
