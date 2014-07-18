@@ -305,7 +305,8 @@ endmacro(CMH_ADD_EXECUTABLE_MODULE)
 macro(CMH_ADD_CUDA_LIBRARY_MODULE)
   CMH_BEGIN_ADD_MODULE(CMH_MODULE_SOURCE_FILES ${ARGN})
   CMH_PREPARE_CUDA_COMPILER(CMH_CUDA_COMPILER_DEFINITIONS)
-  cuda_add_library(${CMH_MODULE_NAME} ${CMH_MODULE_SOURCE_FILES} OPTIONS ${CMH_CUDA_COMPILER_DEFINITIONS})
+  cuda_add_library(${CMH_MODULE_NAME} ${CMH_MODULE_SOURCE_FILES}
+    OPTIONS ${CMH_CUDA_COMPILER_DEFINITIONS})
   CMH_END_MODULE()
 endmacro(CMH_ADD_CUDA_LIBRARY_MODULE)
 
@@ -313,7 +314,8 @@ endmacro(CMH_ADD_CUDA_LIBRARY_MODULE)
 macro(CMH_ADD_CUDA_EXECUTABLE_MODULE)
   CMH_BEGIN_ADD_MODULE(CMH_MODULE_SOURCE_FILES ${ARGN})
   CMH_PREPARE_CUDA_COMPILER(CMH_CUDA_COMPILER_DEFINITIONS)
-  cuda_add_executable(${CMH_MODULE_NAME} ${CMH_MODULE_SOURCE_FILES} OPTIONS ${CMH_CUDA_COMPILER_DEFINITIONS})
+  cuda_add_executable(${CMH_MODULE_NAME} ${CMH_MODULE_SOURCE_FILES}
+    OPTIONS ${CMH_CUDA_COMPILER_DEFINITIONS})
   CMH_END_MODULE()
 endmacro(CMH_ADD_CUDA_EXECUTABLE_MODULE)
 
@@ -328,7 +330,8 @@ macro(CMH_TARGET_COMPILE_OPTIONS)
   elseif(CMH_IS_LIBRARY OR CMH_IS_EXECUTABLE)
     target_compile_options(${CMH_MODULE_NAME} PUBLIC ${ARGN})
   else()
-    message(WARNING "cmake_helper: cmh_target_compile_options() called on target of unrecognized type.")
+    message(WARNING "cmake_helper: cmh_target_compile_options() called"
+      " on target of unrecognized type, \"${CMH_MODULE_NAME}\".")
   endif()
 
   CMH_UNSET_TARGET_TYPE()
@@ -345,7 +348,8 @@ macro(CMH_TARGET_COMPILE_DEFINITIONS)
   elseif(CMH_IS_LIBRARY OR CMH_IS_EXECUTABLE)
     target_compile_definitions(${CMH_MODULE_NAME} PUBLIC ${ARGN})
   else()
-    message(WARNING "cmake_helper: cmh_target_compile_definitions() called on target of unrecognized type.")
+    message(WARNING "cmake_helper: cmh_target_compile_definitions() called"
+      " on target of unrecognized type, \"${CMH_MODULE_NAME}\".")
   endif()
 
   CMH_UNSET_TARGET_TYPE()
@@ -362,7 +366,8 @@ macro(CMH_TARGET_INCLUDE_DIRECTORIES)
   elseif(CMH_IS_LIBRARY OR CMH_IS_EXECUTABLE)
     target_include_directories(${CMH_MODULE_NAME} PUBLIC ${ARGN})
   else()
-    message(WARNING "cmake_helper: cmh_target_include_directories() called on target of unrecognized type.")
+    message(WARNING "cmake_helper: cmh_target_include_directories() called"
+      " on target of unrecognized type, \"${CMH_MODULE_NAME}\".")
   endif()
 
   CMH_UNSET_TARGET_TYPE()
@@ -386,7 +391,8 @@ macro(CMH_TARGET_LINK_LIBRARIES)
       target_link_libraries(${CMH_MODULE_NAME} PUBLIC ${ARGN})
     endif()
   else()
-    message(WARNING "cmake_helper: cmh_target_link_libraries() called on target of unrecognized type.")
+    message(WARNING "cmake_helper: cmh_target_link_libraries() called"
+      " on target of unrecognized type, \"${CMH_MODULE_NAME}\".")
   endif()
 
   CMH_UNSET_TARGET_TYPE()
@@ -446,7 +452,8 @@ macro(CMH_LINK_MODULES EXECUTABLE_NAME)
     endforeach()
     unset(DEPENDENCY)
   else()
-    message(WARNING "cmake_helper: cmh_link_modules() called on target that was not an executable.")
+    message(WARNING "cmake_helper: cmh_link_modules() called on target"
+      " that was not an executable, \"${EXECUTABLE_NAME}\".")
   endif()
 
   CMH_UNSET_TARGET_TYPE()
@@ -662,7 +669,8 @@ macro(CMH_FIND_BOOST_HELPER)
           # the cmh_add_module_subdirectory() function which defines its own scope.
           set(CMH_FIND_BOOST_HELPER_MESSAGE TRUE PARENT_SCOPE)
         endif()
-        message("cmake_helper: If necessary, provide hints for the location of the Boost root and library directories in CMH_BOOST_ROOT_DIR and CMH_BOOST_LIBRARY_DIR.")
+        message("cmake_helper: If necessary, provide hints for the location of the Boost root"
+          " and library directories in CMH_BOOST_ROOT_DIR and CMH_BOOST_LIBRARY_DIR.")
       endif()
     endif()
     # Prompt the user for hints as to where the Boost root and library directories are.
