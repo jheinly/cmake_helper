@@ -1,8 +1,9 @@
 # TODO: add test folder which contains CMake/C++ code to test the functionality of this package
 # TODO: prevent duplicate compile definitions, include directories, and link libraries from being specified for the same target
 # TODO: verify that CUDA-specific settings aren't being accidentally propagated to other modules
-# TODO: add standalone CUDA executable support
 # TODO: allow the user to choose between different warning levels
+# TODO: test standalone CUDA executable support
+# TODO: clean-up the code for standalone vs. cmake_helper module support (i.e. IS_STANDALONE, IS_MODULE)
 
 # CMake 3.0 is required as it added the add_library() INTERFACE option.
 cmake_minimum_required(VERSION 3.0)
@@ -304,7 +305,7 @@ endmacro(CMH_ADD_EXECUTABLE_MODULE)
 # Convenience macro to create a CUDA library module.
 macro(CMH_ADD_CUDA_LIBRARY_MODULE)
   CMH_BEGIN_ADD_MODULE(CMH_MODULE_SOURCE_FILES ${ARGN})
-  CMH_PREPARE_CUDA_COMPILER(CMH_CUDA_COMPILER_DEFINITIONS)
+  CMH_PREPARE_CUDA_COMPILER(CMH_CUDA_COMPILER_DEFINITIONS TRUE)
   cuda_add_library(${CMH_MODULE_NAME} ${CMH_MODULE_SOURCE_FILES}
     OPTIONS ${CMH_CUDA_COMPILER_DEFINITIONS})
   CMH_END_MODULE()
@@ -313,7 +314,7 @@ endmacro(CMH_ADD_CUDA_LIBRARY_MODULE)
 # Convenience macro to create a CUDA executable module.
 macro(CMH_ADD_CUDA_EXECUTABLE_MODULE)
   CMH_BEGIN_ADD_MODULE(CMH_MODULE_SOURCE_FILES ${ARGN})
-  CMH_PREPARE_CUDA_COMPILER(CMH_CUDA_COMPILER_DEFINITIONS)
+  CMH_PREPARE_CUDA_COMPILER(CMH_CUDA_COMPILER_DEFINITIONS TRUE)
   cuda_add_executable(${CMH_MODULE_NAME} ${CMH_MODULE_SOURCE_FILES}
     OPTIONS ${CMH_CUDA_COMPILER_DEFINITIONS})
   CMH_END_MODULE()
@@ -447,7 +448,11 @@ macro(CMH_LINK_MODULES EXECUTABLE_NAME)
       target_compile_options(${EXECUTABLE_NAME} PUBLIC ${${DEPENDENCY}_COMPILE_OPTIONS})
       target_compile_definitions(${EXECUTABLE_NAME} PUBLIC ${${DEPENDENCY}_COMPILE_DEFINITIONS})
       target_include_directories(${EXECUTABLE_NAME} PUBLIC ${${DEPENDENCY}_INCLUDE_DIRECTORIES})
-      target_link_libraries(${EXECUTABLE_NAME} PUBLIC ${${DEPENDENCY}_LINK_LIBRARIES})
+      if(CMH_IS_CUDA_STANDALONE)
+        target_link_libraries(${EXECUTABLE_NAME} ${${DEPENDENCY}_LINK_LIBRARIES})
+      else()
+        target_link_libraries(${EXECUTABLE_NAME} PUBLIC ${${DEPENDENCY}_LINK_LIBRARIES})
+      endif()
       add_dependencies(${EXECUTABLE_NAME} ${DEPENDENCY})
     endforeach()
     unset(DEPENDENCY)
@@ -695,6 +700,12 @@ endmacro(CMH_FIND_BOOST_HELPER)
 # to the CUDA compiler. Additionally, this macro will setup the proper include directories
 # and compile definitions for the dependencies of this module.
 macro(CMH_PREPARE_CUDA_COMPILER OUTPUT_NAME)
+  set(IS_MODULE ${ARGN})
+  list(LENGTH IS_MODULE LIST_LEN)
+  if(NOT ${LIST_LEN} EQUAL 1)
+    set(IS_MODULE FALSE)
+  endif()
+
   # We need to set Boost compile definitions before creating a CUDA target.
   CMH_BOOST_CUDA_FLAGS_HELPER()
 
@@ -718,7 +729,12 @@ macro(CMH_PREPARE_CUDA_COMPILER OUTPUT_NAME)
   # and compile definitions as these must be specified before creating the CUDA target.
   # Note that the definitions and include directories will only apply to the CUDA
   # compilation and not to the C++ targets.
-  foreach(DEPENDENCY ${${CMH_MODULE_NAME}_MODULE_DEPENDENCIES})
+  if(${IS_MODULE})
+    set(DEPENDENCIES ${${CMH_MODULE_NAME}_MODULE_DEPENDENCIES})
+  else()
+    set(DEPENDENCIES ${CMH_CURRENT_LOADED_MODULES})
+  endif()
+  foreach(DEPENDENCY ${DEPENDENCIES})
     foreach(DEFINITION ${${DEPENDENCY}_COMPILE_DEFINITIONS})
       # We need to add the -D flag back to all of the compile definitions that we
       # will pass to the CUDA compiler.
@@ -728,20 +744,27 @@ macro(CMH_PREPARE_CUDA_COMPILER OUTPUT_NAME)
     cuda_include_directories(${${DEPENDENCY}_INCLUDE_DIRECTORIES})
   endforeach()
   unset(DEPENDENCY)
+  unset(DEPENDENCIES)
 
-  # Keep a list of the current modules that are actually CUDA targets.
-  if(NOT CMH_CUDA_MODULE_NAMES)
-    set(CMH_CUDA_MODULE_NAMES ${CMH_MODULE_NAME})
+  if(${IS_MODULE})
+    # Keep a list of the current modules that are actually CUDA targets.
+    if(NOT CMH_CUDA_MODULE_NAMES)
+      set(CMH_CUDA_MODULE_NAMES ${CMH_MODULE_NAME})
+    else()
+      list(APPEND CMH_CUDA_MODULE_NAMES ${CMH_MODULE_NAME})
+    endif()
+    set(CMH_CUDA_MODULE_NAMES ${CMH_CUDA_MODULE_NAMES} PARENT_SCOPE)
   else()
-    list(APPEND CMH_CUDA_MODULE_NAMES ${CMH_MODULE_NAME})
+    set(CMH_IS_CUDA_STANDALONE TRUE)
   endif()
-  set(CMH_CUDA_MODULE_NAMES ${CMH_CUDA_MODULE_NAMES} PARENT_SCOPE)
 
   # Get the compile definitions and include directories from the current
   # directory before creating the CUDA library as the cuda_add_library()
   # macro will modify these values.
   get_directory_property(CMH_CURRENT_COMPILE_DEFINITIONS COMPILE_DEFINITIONS)
   get_directory_property(CMH_CURRENT_INCLUDE_DIRECTORIES INCLUDE_DIRECTORIES)
+
+  unset(IS_MODULE)
 endmacro(CMH_PREPARE_CUDA_COMPILER)
 
 # This macro takes the directory properties from the CUDA library and sets
