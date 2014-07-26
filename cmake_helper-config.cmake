@@ -14,9 +14,13 @@ include(CMakeParseArguments)
 # If this is Mac OS, override the default compiler (which is probably one
 # provided by XCode).
 if(APPLE)
-  message("cmake_helper: Overriding default compiler...")
-  set(CMAKE_C_COMPILER /usr/bin/gcc)
-  set(CMAKE_CXX_COMPILER /usr/bin/g++)
+  set(CMH_APPLE_CXX_COMPILER /usr/bin/g++)
+  set(CMH_APPLE_C_COMPILER /usr/bin/gcc)
+  if(NOT ${CMAKE_CXX_COMPILER} STREQUAL ${CMH_APPLE_CXX_COMPILER})
+    message("cmake_helper: Overriding default compiler...")
+    set(CMAKE_C_COMPILER ${CMH_APPLE_C_COMPILER} CACHE PATH "C compiler." FORCE)
+    set(CMAKE_CXX_COMPILER ${CMH_APPLE_CXX_COMPILER} CACHE PATH "CXX compiler." FORCE)
+  endif()
 endif()
 
 # If the build type (Debug/Release) has not been set for a UNIX-style system,
@@ -25,7 +29,9 @@ endif()
 if(UNIX)
   if(NOT CMAKE_BUILD_TYPE)
     message("cmake_helper: No build type selected, defaulting to Release...")
-    set(CMAKE_BUILD_TYPE "Release")
+    set(CMAKE_BUILD_TYPE "Release" CACHE STRING
+      "Choose the type of build, options are: None(CMAKE_CXX_FLAGS or CMAKE_C_FLAGS used) Debug Release RelWithDebInfo MinSizeRel."
+      FORCE)
   endif()
 endif()
 
