@@ -4,6 +4,7 @@
 # TODO: allow the user to choose between different warning levels
 # TODO: test standalone CUDA executable support
 # TODO: clean-up the code for standalone vs. cmake_helper module support (i.e. IS_STANDALONE, IS_MODULE)
+# TODO: add Qt5 support
 
 # CMake 3.0 is required as it added the add_library() INTERFACE option.
 cmake_minimum_required(VERSION 3.0)
@@ -131,11 +132,10 @@ endmacro(CMH_NEW_MODULE_WITH_DEPENDENCIES)
 # all temporary variables declared inside of this function won't be visibile by the
 # calling macro.
 function(CMH_ADD_MODULE_SUBDIRECTORY)
+  set(CMH_ADDING_MODULE TRUE)
+
   # Include the CMakeLists.txt file from the current directory.
-  set(CMH_IN_SUBDIRECTORY TRUE)
   add_subdirectory(${CMAKE_CURRENT_LIST_DIR} ${CMAKE_BINARY_DIR}/${CMH_MODULE_NAME})
-  set(CMH_IN_SUBDIRECTORY FALSE)
-  unset(CMH_IN_SUBDIRECTORY)
 
   # Help set up OpenCV.
   CMH_OPENCV_HELPER()
@@ -275,6 +275,8 @@ function(CMH_ADD_MODULE_SUBDIRECTORY)
     endif()
   endforeach()
 
+  set(CMH_ADDING_MODULE FALSE)
+  unset(CMH_ADDING_MODULE)
   unset(CMH_MODULE_NAME_DEBUG)
   CMH_UNSET_TARGET_TYPE()
 endfunction(CMH_ADD_MODULE_SUBDIRECTORY)
@@ -446,7 +448,7 @@ endmacro(CMH_END_MODULE)
 
 # This macro links dependency modules to a standalone executable.
 macro(CMH_LINK_MODULES EXECUTABLE_NAME)
-  CMH_FIND_BOOST_HELPER(TRUE)
+  CMH_FIND_BOOST_HELPER()
   CMH_BOOST_FLAGS_HELPER(${EXECUTABLE_NAME})
   CMH_OPENMP_FLAGS_HELPER(${EXECUTABLE_NAME})
 
@@ -576,7 +578,7 @@ endmacro(CMH_UNSET_TARGET_TYPE)
 # and if so, will automatically add the required compile options to the module.
 macro(CMH_OPENMP_FLAGS_HELPER)
   if(OPENMP_FOUND)
-    if(CMH_IN_SUBDIRECTORY)
+    if(CMH_ADDING_MODULE)
       message("cmake_helper: Adding OpenMP compile options to module \"${CMH_MODULE_NAME}\".")
       CMH_TARGET_COMPILE_OPTIONS(${OpenMP_CXX_FLAGS})
     else()
@@ -665,12 +667,6 @@ endmacro(CMH_BOOST_CUDA_FLAGS_HELPER)
 
 # This macro helps find the Boost include and library directories.
 macro(CMH_FIND_BOOST_HELPER)
-  set(IS_STANDALONE ${ARGN})
-  list(LENGTH IS_STANDALONE LIST_LEN)
-  if(NOT ${LIST_LEN} EQUAL 1)
-    set(IS_STANDALONE FALSE)
-  endif()
-
   # Test to see if Boost has been used in a find_package() statement.
   if(DEFINED Boost_DIR)
     # Test to see if the Boost include directory has been located or set.
@@ -678,7 +674,7 @@ macro(CMH_FIND_BOOST_HELPER)
       # If the Boost include directory is not set, make sure that we print the message below only once.
       if(NOT CMH_FIND_BOOST_HELPER_MESSAGE)
         set(CMH_FIND_BOOST_HELPER_MESSAGE TRUE)
-        if(NOT ${IS_STANDALONE})
+        if(CMH_ADDING_MODULE)
           # Set the variable in the parent scope as well as this macro is typically called from within
           # the cmh_add_module_subdirectory() function which defines its own scope.
           set(CMH_FIND_BOOST_HELPER_MESSAGE TRUE PARENT_SCOPE)
@@ -699,8 +695,6 @@ macro(CMH_FIND_BOOST_HELPER)
       set(BOOST_LIBRARYDIR ${CMH_BOOST_LIBRARY_DIR} CACHE INTERNAL "Hint for Boost library directory location.")
     endif()
   endif()
-  unset(IS_STANDALONE)
-  unset(LIST_LEN)
 endmacro(CMH_FIND_BOOST_HELPER)
 
 # This macro requests the user to specify the default compute capability of their GPU. Given
@@ -732,7 +726,7 @@ macro(CMH_PREPARE_CUDA_COMPILER OUTPUT_NAME)
   # and compile definitions as these must be specified before creating the CUDA target.
   # Note that the definitions and include directories will only apply to the CUDA
   # compilation and not to the C++ targets.
-  if(CMH_IN_SUBDIRECTORY)
+  if(CMH_ADDING_MODULE)
     set(DEPENDENCIES ${${CMH_MODULE_NAME}_MODULE_DEPENDENCIES})
   else()
     set(DEPENDENCIES ${CMH_CURRENT_LOADED_MODULES})
@@ -749,7 +743,7 @@ macro(CMH_PREPARE_CUDA_COMPILER OUTPUT_NAME)
   unset(DEPENDENCY)
   unset(DEPENDENCIES)
 
-  if(CMH_IN_SUBDIRECTORY)
+  if(CMH_ADDING_MODULE)
     # Keep a list of the current modules that are actually CUDA targets.
     if(NOT CMH_CUDA_MODULE_NAMES)
       set(CMH_CUDA_MODULE_NAMES ${CMH_MODULE_NAME})
