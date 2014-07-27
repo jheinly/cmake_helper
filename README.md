@@ -1,4 +1,5 @@
-# cmake_helper
+cmake_helper
+============
 
 This package is designed to assist in the creation and use of modular C++ code that uses [CMake](http://www.cmake.org/). It really shines when your codebase consists of many separate C++ libraries, each of which have various dependencies on each other or 3rd-party packages. Its main advantages are:
 
