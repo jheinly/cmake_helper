@@ -3,7 +3,6 @@
 # TODO: verify that CUDA-specific settings aren't being accidentally propagated to other modules
 # TODO: allow the user to choose between different warning levels
 # TODO: test standalone CUDA executable support
-# TODO: clean-up the code for standalone vs. cmake_helper module support (i.e. IS_STANDALONE, IS_MODULE)
 # TODO: add Qt5 support
 
 # CMake 3.0 is required as it added the add_library() INTERFACE option.
@@ -617,12 +616,15 @@ endmacro(CMH_OPENCV_HELPER)
 # This macro detects if Boost has been requested and found in the current module,
 # and if so, will automatically add useful Boost compile definitions to the module.
 macro(CMH_BOOST_FLAGS_HELPER)
-  set(IS_STANDALONE TRUE)
-  set(TARGET_NAME ${ARGN})
-  list(LENGTH TARGET_NAME LIST_LEN)
-  if(NOT ${LIST_LEN} EQUAL 1)
-    set(IS_STANDALONE FALSE)
+  if(CMH_ADDING_MODULE)
     set(TARGET_NAME ${CMH_MODULE_NAME})
+  else()
+    set(TARGET_NAME ${ARGN})
+    list(LENGTH TARGET_NAME LIST_LEN)
+    if(NOT ${LIST_LEN} EQUAL 1)
+      message(WARNING "cmake_helper: cmh_boost_flags_helper() expected 1 argument.")
+    endif()
+    unset(LIST_LEN)
   endif()
 
   CMH_GET_TARGET_TYPE(${TARGET_NAME})
@@ -631,24 +633,22 @@ macro(CMH_BOOST_FLAGS_HELPER)
   # is a CUDA module, then the Boost compile definitions will have already been handled
   # by the cmh_boost_cuda_flags_helper() macro.
   if(Boost_FOUND AND NOT CMH_IS_CUDA_MODULE)
-    if(${IS_STANDALONE})
-      message("cmake_helper: Adding Boost compile definitions to target \"${TARGET_NAME}\".")
-      target_compile_definitions(${TARGET_NAME} PUBLIC
+    if(CMH_ADDING_MODULE)
+      message("cmake_helper: Adding Boost compile definitions to module \"${TARGET_NAME}\".")
+      CMH_TARGET_COMPILE_DEFINITIONS(
         BOOST_ALL_NO_LIB
         BOOST_ALL_DYN_LINK
       )
     else()
-      message("cmake_helper: Adding Boost compile definitions to module \"${TARGET_NAME}\".")
-      CMH_TARGET_COMPILE_DEFINITIONS(
+      message("cmake_helper: Adding Boost compile definitions to target \"${TARGET_NAME}\".")
+      target_compile_definitions(${TARGET_NAME} PUBLIC
         BOOST_ALL_NO_LIB
         BOOST_ALL_DYN_LINK
       )
     endif()
   endif()
 
-  unset(IS_STANDALONE)
   unset(TARGET_NAME)
-  unset(LIST_LEN)
   CMH_UNSET_TARGET_TYPE()
 endmacro(CMH_BOOST_FLAGS_HELPER)
 
