@@ -35,6 +35,33 @@ if(UNIX)
   endif()
 endif()
 
+# TODO: add non-MSVC support
+set(CMH_CHANGED_OPTIMIZATION_LEVEL FALSE)
+if(MSVC)
+  # CXX Flags
+  if(CMAKE_CXX_FLAGS_RELEASE MATCHES "/O[1-2]")
+    string(REGEX REPLACE "/O[1-2]" "" CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
+  endif()
+  if(NOT CMAKE_CXX_FLAGS_RELEASE MATCHES "/Ox")
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /Ox")
+    set(CMH_CHANGED_OPTIMIZATION_LEVEL TRUE)
+  endif()
+
+  # C Flags
+  if(CMAKE_C_FLAGS_RELEASE MATCHES "/O[1-2]")
+    string(REGEX REPLACE "/O[1-2]" "" CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE}")
+  endif()
+  if(NOT CMAKE_C_FLAGS_RELEASE MATCHES "/Ox")
+    set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /Ox")
+    set(CMH_CHANGED_OPTIMIZATION_LEVEL TRUE)
+  endif()
+endif()
+if(CMH_CHANGED_OPTIMIZATION_LEVEL)
+  message("cmake_helper: Changed default optimization level in CMAKE_CXX_FLAGS_RELEASE.")
+  set(CMAKE_CXX_FLAGS_RELEASE ${CMAKE_CXX_FLAGS_RELEASE} CACHE STRING "Flags used by the compiler during all build types." FORCE)
+  set(CMAKE_C_FLAGS_RELEASE ${CMAKE_C_FLAGS_RELEASE} CACHE STRING "Flags used by the compiler during all build types." FORCE)
+endif()
+
 set(CMH_REMOVED_WARNING_LEVEL FALSE)
 if(MSVC)
   if(CMAKE_CXX_FLAGS MATCHES "/W[0-4]")
