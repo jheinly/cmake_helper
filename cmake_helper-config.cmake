@@ -35,6 +35,8 @@ if(UNIX)
   endif()
 endif()
 
+# Override the default optimization level for Release mode set by CMake
+# and set it to a higher level.
 # TODO: add non-MSVC support
 set(CMH_CHANGED_OPTIMIZATION_LEVEL FALSE)
 if(MSVC)
@@ -46,7 +48,6 @@ if(MSVC)
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /Ox")
     set(CMH_CHANGED_OPTIMIZATION_LEVEL TRUE)
   endif()
-
   # C Flags
   if(CMAKE_C_FLAGS_RELEASE MATCHES "/O[1-2]")
     string(REGEX REPLACE "/O[1-2]" "" CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE}")
@@ -62,8 +63,12 @@ if(CMH_CHANGED_OPTIMIZATION_LEVEL)
   set(CMAKE_C_FLAGS_RELEASE ${CMAKE_C_FLAGS_RELEASE} CACHE STRING "Flags used by the compiler during all build types." FORCE)
 endif()
 
+# Remove the default warning level set by CMake so that later code (cmh_warning_level_helper)
+# can allow the user to specify a custom warning level per target.
+# TODO: finish non-MSVC support
 set(CMH_REMOVED_WARNING_LEVEL FALSE)
 if(MSVC)
+  # CXX Flags
   if(CMAKE_CXX_FLAGS MATCHES "/W[0-4]")
     string(REGEX REPLACE "/W[0-4]" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
     set(CMH_REMOVED_WARNING_LEVEL TRUE)
@@ -71,6 +76,7 @@ if(MSVC)
     string(REGEX REPLACE "/Wall" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
     set(CMH_REMOVED_WARNING_LEVEL TRUE)
   endif()
+  # C Flags
   if(CMAKE_C_FLAGS MATCHES "/W[0-4]")
     string(REGEX REPLACE "/W[0-4]" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
     set(CMH_REMOVED_WARNING_LEVEL TRUE)
@@ -79,10 +85,12 @@ if(MSVC)
     set(CMH_REMOVED_WARNING_LEVEL TRUE)
   endif()
 elseif(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
+  # CXX Flags
   if(CMAKE_CXX_FLAGS MATCHES "-Wall")
     string(REGEX REPLACE "-Wall" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
     set(CMH_REMOVED_WARNING_LEVEL TRUE)
   endif()
+  # C Flags
   if(CMAKE_C_FLAGS MATCHES "-Wall")
     string(REGEX REPLACE "-Wall" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
     set(CMH_REMOVED_WARNING_LEVEL TRUE)
@@ -601,6 +609,8 @@ macro(CMH_UNSET_TARGET_TYPE)
   unset(CMH_IS_CUDA_MODULE)
 endmacro(CMH_UNSET_TARGET_TYPE)
 
+# This macro creates a new CMake variable in the GUI that allows the user to specify
+# a custom compiler warning level for the current target.
 macro(CMH_WARNING_LEVEL_HELPER)
   if(CMH_ADDING_MODULE)
     set(TARGET_NAME ${CMH_MODULE_NAME})
@@ -616,10 +626,12 @@ macro(CMH_WARNING_LEVEL_HELPER)
   CMH_GET_TARGET_TYPE(${TARGET_NAME})
 
   if(NOT CMH_IS_HEADER_MODULE)
+    # Create the CMake GUI variable.
     set(CMH_WARNING_LEVEL_${TARGET_NAME} "/W3" CACHE STRING "Compiler warning level.")
     set_property(CACHE CMH_WARNING_LEVEL_${TARGET_NAME} PROPERTY STRINGS /W0 /W1 /W2 /W3 /W4 /Wall)
     # TODO: handle non-MSVC compilers, -Wall -pedantic -Wextra
 
+    # Get the current compile options, and append the user-provided warning level.
     get_target_property(CURRENT_COMPILE_OPTIONS ${TARGET_NAME} COMPILE_OPTIONS)
     if(NOT CURRENT_COMPILE_OPTIONS)
       set(CURRENT_COMPILE_OPTIONS "")
