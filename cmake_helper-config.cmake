@@ -62,39 +62,37 @@ if(CMH_CHANGED_OPTIMIZATION_LEVEL)
   set(CMAKE_C_FLAGS_RELEASE ${CMAKE_C_FLAGS_RELEASE} CACHE STRING "Flags used by the compiler during all build types." FORCE)
 endif()
 
-# TODO: removed custom warning levels until the following compiler warning can be resolved:
-#   warning D9025: overriding '/W1' with '/W3'
-# set(CMH_REMOVED_WARNING_LEVEL FALSE)
-# if(MSVC)
-  # if(CMAKE_CXX_FLAGS MATCHES "/W[0-4]")
-    # string(REGEX REPLACE "/W[0-4]" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
-    # set(CMH_REMOVED_WARNING_LEVEL TRUE)
-  # elseif(CMAKE_CXX_FLAGS MATCHES "/Wall")
-    # string(REGEX REPLACE "/Wall" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
-    # set(CMH_REMOVED_WARNING_LEVEL TRUE)
-  # endif()
-  # if(CMAKE_C_FLAGS MATCHES "/W[0-4]")
-    # string(REGEX REPLACE "/W[0-4]" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
-    # set(CMH_REMOVED_WARNING_LEVEL TRUE)
-  # elseif(CMAKE_C_FLAGS MATCHES "/Wall")
-    # string(REGEX REPLACE "/Wall" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
-    # set(CMH_REMOVED_WARNING_LEVEL TRUE)
-  # endif()
-# elseif(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
-  # if(CMAKE_CXX_FLAGS MATCHES "-Wall")
-    # string(REGEX REPLACE "-Wall" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
-    # set(CMH_REMOVED_WARNING_LEVEL TRUE)
-  # endif()
-  # if(CMAKE_C_FLAGS MATCHES "-Wall")
-    # string(REGEX REPLACE "-Wall" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
-    # set(CMH_REMOVED_WARNING_LEVEL TRUE)
-  # endif()
-# endif()
-# if(CMH_REMOVED_WARNING_LEVEL)
-  # message("cmake_helper: Removed warning level from default CMAKE_CXX_FLAGS.")
-  # set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} CACHE STRING "Flags used by the compiler during all build types." FORCE)
-  # set(CMAKE_C_FLAGS ${CMAKE_C_FLAGS} CACHE STRING "Flags used by the compiler during all build types." FORCE)
-# endif()
+set(CMH_REMOVED_WARNING_LEVEL FALSE)
+if(MSVC)
+  if(CMAKE_CXX_FLAGS MATCHES "/W[0-4]")
+    string(REGEX REPLACE "/W[0-4]" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+    set(CMH_REMOVED_WARNING_LEVEL TRUE)
+  elseif(CMAKE_CXX_FLAGS MATCHES "/Wall")
+    string(REGEX REPLACE "/Wall" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+    set(CMH_REMOVED_WARNING_LEVEL TRUE)
+  endif()
+  if(CMAKE_C_FLAGS MATCHES "/W[0-4]")
+    string(REGEX REPLACE "/W[0-4]" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+    set(CMH_REMOVED_WARNING_LEVEL TRUE)
+  elseif(CMAKE_C_FLAGS MATCHES "/Wall")
+    string(REGEX REPLACE "/Wall" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+    set(CMH_REMOVED_WARNING_LEVEL TRUE)
+  endif()
+elseif(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
+  if(CMAKE_CXX_FLAGS MATCHES "-Wall")
+    string(REGEX REPLACE "-Wall" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+    set(CMH_REMOVED_WARNING_LEVEL TRUE)
+  endif()
+  if(CMAKE_C_FLAGS MATCHES "-Wall")
+    string(REGEX REPLACE "-Wall" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+    set(CMH_REMOVED_WARNING_LEVEL TRUE)
+  endif()
+endif()
+if(CMH_REMOVED_WARNING_LEVEL)
+  message("cmake_helper: Removed warning level from default CMAKE_CXX_FLAGS.")
+  set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} CACHE STRING "Flags used by the compiler during all build types." FORCE)
+  set(CMAKE_C_FLAGS ${CMAKE_C_FLAGS} CACHE STRING "Flags used by the compiler during all build types." FORCE)
+endif()
 
 # This macro is called from a module's *-config.cmake file. It takes as input the names or
 # *-config.cmake paths to other cmake_helper modules on which this module depends.
@@ -176,17 +174,6 @@ function(CMH_ADD_MODULE_SUBDIRECTORY)
 
   # Get the target type after the subdirectory has been processed.
   CMH_GET_TARGET_TYPE(${CMH_MODULE_NAME})
-
-#  if(NOT CMH_IS_HEADER_MODULE)
-#    set(CMH_WARNING_LEVEL_${CMH_MODULE_NAME} "/W3" CACHE STRING "Compiler warning level.")
-#    set_property(CACHE CMH_WARNING_LEVEL_${CMH_MODULE_NAME} PROPERTY STRINGS /W0 /W1 /W2 /W3 /W4 /Wall)
-#    # TODO: handle non-MSVC compilers, -Wall -pedantic -Wextra
-#
-#    get_target_property(CURRENT_COMPILE_OPTIONS
-#      ${CMH_MODULE_NAME} COMPILE_OPTIONS)
-#    set_target_properties(${CMH_MODULE_NAME} PROPERTIES
-#      COMPILE_OPTIONS "${CURRENT_COMPILE_OPTIONS} ${CMH_WARNING_LEVEL_${CMH_MODULE_NAME}}")
-#  endif()
 
   # Set the name of this module when compiling in Debug mode.
   set(CMH_MODULE_NAME_DEBUG ${CMH_MODULE_NAME}_d)
@@ -457,7 +444,7 @@ endmacro(CMH_TARGET_LINK_LIBRARIES)
 # as it sets up those settings that can only be set inside the same
 # scope of the module's CMakeLists.txt file.
 macro(CMH_END_MODULE)
-  # Set up the OpenMP and Boost flags if required.
+  CMH_WARNING_LEVEL_HELPER()
   CMH_OPENMP_FLAGS_HELPER()
   CMH_BOOST_FLAGS_HELPER()
 
@@ -488,8 +475,9 @@ endmacro(CMH_END_MODULE)
 # This macro links dependency modules to a standalone executable.
 macro(CMH_LINK_MODULES EXECUTABLE_NAME)
   CMH_FIND_BOOST_HELPER()
-  CMH_BOOST_FLAGS_HELPER(${EXECUTABLE_NAME})
+  CMH_WARNING_LEVEL_HELPER(${EXECUTABLE_NAME})
   CMH_OPENMP_FLAGS_HELPER(${EXECUTABLE_NAME})
+  CMH_BOOST_FLAGS_HELPER(${EXECUTABLE_NAME})
 
   # Get the type of the target (library, executable, etc).
   CMH_GET_TARGET_TYPE(${EXECUTABLE_NAME})
@@ -612,6 +600,35 @@ macro(CMH_UNSET_TARGET_TYPE)
   unset(CMH_IS_HEADER_MODULE)
   unset(CMH_IS_CUDA_MODULE)
 endmacro(CMH_UNSET_TARGET_TYPE)
+
+macro(CMH_WARNING_LEVEL_HELPER)
+  if(CMH_ADDING_MODULE)
+    set(TARGET_NAME ${CMH_MODULE_NAME})
+  else()
+    set(TARGET_NAME ${ARGN})
+    list(LENGTH TARGET_NAME LIST_LEN)
+    if(NOT ${LIST_LEN} EQUAL 1)
+      message(WARNING "cmake_helper: cmh_warning_level_helper() expected 1 argument.")
+    endif()
+    unset(LIST_LEN)
+  endif()
+
+  CMH_GET_TARGET_TYPE(${TARGET_NAME})
+
+  if(NOT CMH_IS_HEADER_MODULE)
+    set(CMH_WARNING_LEVEL_${TARGET_NAME} "/W3" CACHE STRING "Compiler warning level.")
+    set_property(CACHE CMH_WARNING_LEVEL_${TARGET_NAME} PROPERTY STRINGS /W0 /W1 /W2 /W3 /W4 /Wall)
+    # TODO: handle non-MSVC compilers, -Wall -pedantic -Wextra
+
+    get_target_property(CURRENT_COMPILE_OPTIONS ${TARGET_NAME} COMPILE_OPTIONS)
+    if(NOT CURRENT_COMPILE_OPTIONS)
+      set(CURRENT_COMPILE_OPTIONS "")
+    endif()
+    list(APPEND CURRENT_COMPILE_OPTIONS ${CMH_WARNING_LEVEL_${TARGET_NAME}})
+    set_target_properties(${TARGET_NAME} PROPERTIES
+      COMPILE_OPTIONS ${CURRENT_COMPILE_OPTIONS})
+  endif()
+endmacro(CMH_WARNING_LEVEL_HELPER)
 
 # This macro detects if OpenMP has been requested and found in the current module,
 # and if so, will automatically add the required compile options to the module.
