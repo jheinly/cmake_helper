@@ -171,6 +171,9 @@ function(CMH_ADD_MODULE_SUBDIRECTORY)
   # Include the CMakeLists.txt file from the current directory.
   add_subdirectory(${CMAKE_CURRENT_LIST_DIR} ${CMAKE_BINARY_DIR}/${CMH_MODULE_NAME})
 
+  # Set up the C++ compiler warning level.
+  CMH_WARNING_LEVEL_HELPER()
+
   # Help set up OpenCV.
   CMH_OPENCV_HELPER()
 
@@ -452,7 +455,6 @@ endmacro(CMH_TARGET_LINK_LIBRARIES)
 # as it sets up those settings that can only be set inside the same
 # scope of the module's CMakeLists.txt file.
 macro(CMH_END_MODULE)
-  CMH_WARNING_LEVEL_HELPER()
   CMH_OPENMP_FLAGS_HELPER()
   CMH_BOOST_FLAGS_HELPER()
 
@@ -626,10 +628,41 @@ macro(CMH_WARNING_LEVEL_HELPER)
   CMH_GET_TARGET_TYPE(${TARGET_NAME})
 
   if(NOT CMH_IS_HEADER_MODULE)
-    # Create the CMake GUI variable.
-    set(CMH_WARNING_LEVEL_${TARGET_NAME} "/W3" CACHE STRING "Compiler warning level.")
-    set_property(CACHE CMH_WARNING_LEVEL_${TARGET_NAME} PROPERTY STRINGS /W0 /W1 /W2 /W3 /W4 /Wall)
     # TODO: handle non-MSVC compilers, -Wall -pedantic -Wextra
+    set(CMH_WARNING_LEVEL_OPTIONS /W0 /W1 /W2 /W3 /W4 /Wall)
+
+    # Setup the default warning level.
+    set(CMH_WARNING_LEVEL_DEFAULT "/W3" CACHE STRING "Default compiler warning level.")
+    set_property(CACHE CMH_WARNING_LEVEL_DEFAULT PROPERTY STRINGS ${CMH_WARNING_LEVEL_OPTIONS})
+
+    # Create a variable that will be used to store a copy of the current default warning level
+    # so that we can detect when it changes.
+    if(NOT DEFINED CMH_WARNING_LEVEL_DEFAULT_COPY)
+      set(CMH_WARNING_LEVEL_DEFAULT_COPY ""
+        CACHE INTERNAL "Copy of the default compiler warning level.")
+    endif()
+
+    # Test if the default warning level changed, but only test it once per CMake configure operation.
+    if(NOT DEFINED CMH_WARNING_LEVEL_DEFAULT_CHANGED)
+      if(CMH_WARNING_LEVEL_DEFAULT STREQUAL CMH_WARNING_LEVEL_DEFAULT_COPY)
+        set(CMH_WARNING_LEVEL_DEFAULT_CHANGED FALSE)
+      else()
+        set(CMH_WARNING_LEVEL_DEFAULT_CHANGED TRUE)
+        set(CMH_WARNING_LEVEL_DEFAULT_COPY ${CMH_WARNING_LEVEL_DEFAULT}
+          CACHE INTERNAL "Copy of the default compiler warning level.")
+      endif()
+    endif()
+    if(CMH_ADDING_MODULE)
+      set(CMH_WARNING_LEVEL_DEFAULT_CHANGED ${CMH_WARNING_LEVEL_DEFAULT_CHANGED} PARENT_SCOPE)
+    endif()
+
+    # Create the CMake GUI variable.
+    set(CMH_WARNING_LEVEL_${TARGET_NAME} ${CMH_WARNING_LEVEL_DEFAULT} CACHE STRING "Compiler warning level.")
+    set_property(CACHE CMH_WARNING_LEVEL_${TARGET_NAME} PROPERTY STRINGS ${CMH_WARNING_LEVEL_OPTIONS})
+    if(CMH_WARNING_LEVEL_DEFAULT_CHANGED)
+      set(CMH_WARNING_LEVEL_${TARGET_NAME} ${CMH_WARNING_LEVEL_DEFAULT}
+        CACHE STRING "Compiler warning level." FORCE)
+    endif()
 
     # Get the current compile options, and append the user-provided warning level.
     get_target_property(CURRENT_COMPILE_OPTIONS ${TARGET_NAME} COMPILE_OPTIONS)
