@@ -787,9 +787,12 @@ macro(CMH_PREPARE_CUDA_COMPILER OUTPUT_NAME)
   endif()
   unset(CAPABILITY)
 
-  # Tell the CUDA compiler to provide verbose output, specifically so that
-  # the register and shared memory usage is printed when compiling.
-  list(APPEND ${OUTPUT_NAME} "--ptxas-options=-v")
+  set(CMH_CUDA_COMPILER_VERBOSE TRUE CACHE BOOL "Whether or not the CUDA compiler should provide verbose output.")
+  if(CMH_CUDA_COMPILER_VERBOSE)
+    # Tell the CUDA compiler to provide verbose output, specifically so that
+    # the register and shared memory usage is printed when compiling.
+    list(APPEND ${OUTPUT_NAME} "--ptxas-options=-v")
+  endif()
 
   # Iterate through the dependencies of this module and add their include directories
   # and compile definitions as these must be specified before creating the CUDA target.
