@@ -37,7 +37,6 @@ endif()
 
 # Override the default optimization level for Release mode set by CMake
 # and set it to a higher level.
-# TODO: add non-MSVC support
 set(CMH_CHANGED_OPTIMIZATION_LEVEL FALSE)
 if(MSVC)
   # CXX Flags
@@ -54,6 +53,23 @@ if(MSVC)
   endif()
   if(NOT CMAKE_C_FLAGS_RELEASE MATCHES "/Ox")
     set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /Ox")
+    set(CMH_CHANGED_OPTIMIZATION_LEVEL TRUE)
+  endif()
+elseif(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
+  # CXX Flags
+  if(CMAKE_CXX_FLAGS_RELEASE MATCHES "-O[1-3]")
+    string(REGEX REPLACE "-O[1-3]" "" CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
+  endif()
+  if(NOT CMAKE_CXX_FLAGS_RELEASE MATCHES "-Ofast")
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -Ofast")
+    set(CMH_CHANGED_OPTIMIZATION_LEVEL TRUE)
+  endif()
+  # C Flags
+  if(CMAKE_C_FLAGS_RELEASE MATCHES "-O[1-3]")
+    string(REGEX REPLACE "-O[1-3]" "" CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE}")
+  endif()
+  if(NOT CMAKE_C_FLAGS_RELEASE MATCHES "-Ofast")
+    set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -Ofast")
     set(CMH_CHANGED_OPTIMIZATION_LEVEL TRUE)
   endif()
 endif()
