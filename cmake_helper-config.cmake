@@ -1,7 +1,6 @@
 # TODO: add test folder which contains CMake/C++ code to test the functionality of this package
 # TODO: prevent duplicate compile definitions, include directories, and link libraries from being specified for the same target
 # TODO: verify that CUDA-specific settings aren't being accidentally propagated to other modules
-# TODO: allow the user to choose between different warning levels
 # TODO: test standalone CUDA executable support
 # TODO: add Qt5 support
 
@@ -37,6 +36,8 @@ endif()
 
 # Override the default optimization level for Release mode set by CMake
 # and set it to a higher level.
+# NOTE: using fast math is not allowed by SQLite.
+set(CMH_ENABLE_FAST_MATH FALSE CACHE BOOL "Whether or not to enable fast math optimizations in the compiler.")
 set(CMH_CHANGED_OPTIMIZATION_LEVEL FALSE)
 if(MSVC)
   # CXX Flags
@@ -47,9 +48,11 @@ if(MSVC)
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /Ox")
     set(CMH_CHANGED_OPTIMIZATION_LEVEL TRUE)
   endif()
-  if(NOT CMAKE_CXX_FLAGS_RELEASE MATCHES "/fp")
-    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /fp:fast")
-    set(CMH_CHANGED_OPTIMIZATION_LEVEL TRUE)
+  if(CMH_ENABLE_FAST_MATH)
+    if(NOT CMAKE_CXX_FLAGS_RELEASE MATCHES "/fp")
+      set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /fp:fast")
+      set(CMH_CHANGED_OPTIMIZATION_LEVEL TRUE)
+    endif()
   endif()
   # C Flags
   if(CMAKE_C_FLAGS_RELEASE MATCHES "/O[1-2]")
@@ -59,26 +62,40 @@ if(MSVC)
     set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /Ox")
     set(CMH_CHANGED_OPTIMIZATION_LEVEL TRUE)
   endif()
-  if(NOT CMAKE_C_FLAGS_RELEASE MATCHES "/fp")
-    set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /fp:fast")
-    set(CMH_CHANGED_OPTIMIZATION_LEVEL TRUE)
+  if(CMH_ENABLE_FAST_MATH)
+    if(NOT CMAKE_C_FLAGS_RELEASE MATCHES "/fp")
+      set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /fp:fast")
+      set(CMH_CHANGED_OPTIMIZATION_LEVEL TRUE)
+    endif()
   endif()
 elseif(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
   # CXX Flags
-  if(CMAKE_CXX_FLAGS_RELEASE MATCHES "-O[1-3]")
-    string(REGEX REPLACE "-O[1-3]" "" CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
+  if(CMAKE_CXX_FLAGS_RELEASE MATCHES "-O[1-2]")
+    string(REGEX REPLACE "-O[1-2]" "" CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
   endif()
-  if(NOT CMAKE_CXX_FLAGS_RELEASE MATCHES "-Ofast")
-    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -Ofast")
+  if(NOT CMAKE_CXX_FLAGS_RELEASE MATCHES "-O3")
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3")
     set(CMH_CHANGED_OPTIMIZATION_LEVEL TRUE)
+  endif()
+  if(CMH_ENABLE_FAST_MATH)
+    if(NOT CMAKE_CXX_FLAGS_RELEASE MATCHES "-ffast-math")
+      set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -ffast-math")
+      set(CMH_CHANGED_OPTIMIZATION_LEVEL TRUE)
+    endif()
   endif()
   # C Flags
-  if(CMAKE_C_FLAGS_RELEASE MATCHES "-O[1-3]")
-    string(REGEX REPLACE "-O[1-3]" "" CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE}")
+  if(CMAKE_C_FLAGS_RELEASE MATCHES "-O[1-2]")
+    string(REGEX REPLACE "-O[1-2]" "" CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE}")
   endif()
-  if(NOT CMAKE_C_FLAGS_RELEASE MATCHES "-Ofast")
-    set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -Ofast")
+  if(NOT CMAKE_C_FLAGS_RELEASE MATCHES "-O3")
+    set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3")
     set(CMH_CHANGED_OPTIMIZATION_LEVEL TRUE)
+  endif()
+  if(CMH_ENABLE_FAST_MATH)
+    if(NOT CMAKE_C_FLAGS_RELEASE MATCHES "-ffast-math")
+      set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -ffast-math")
+      set(CMH_CHANGED_OPTIMIZATION_LEVEL TRUE)
+    endif()
   endif()
 endif()
 if(CMH_CHANGED_OPTIMIZATION_LEVEL)
@@ -89,7 +106,6 @@ endif()
 
 # Remove the default warning level set by CMake so that later code (cmh_warning_level_helper)
 # can allow the user to specify a custom warning level per target.
-# TODO: finish non-MSVC support
 set(CMH_REMOVED_WARNING_LEVEL FALSE)
 if(MSVC)
   # CXX Flags
@@ -652,11 +668,18 @@ macro(CMH_WARNING_LEVEL_HELPER)
   CMH_GET_TARGET_TYPE(${TARGET_NAME})
 
   if(NOT CMH_IS_HEADER_MODULE)
-    # TODO: handle non-MSVC compilers, -Wall -pedantic -Wextra
-    set(CMH_WARNING_LEVEL_OPTIONS /W0 /W1 /W2 /W3 /W4 /Wall)
+    if(MSVC)
+      set(CMH_WARNING_LEVEL_OPTIONS /W0 /W1 /W2 /W3 /W4 /Wall)
+    elseif(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
+      set(CMH_WARNING_LEVEL_OPTIONS -Wall "-Wall -pedantic -Wextra -Wno-long-long")
+    endif()
 
     # Setup the default warning level.
-    set(CMH_WARNING_LEVEL_DEFAULT "/W3" CACHE STRING "Default compiler warning level.")
+    if(MSVC)
+      set(CMH_WARNING_LEVEL_DEFAULT "/W3" CACHE STRING "Default compiler warning level.")
+    elseif(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
+      set(CMH_WARNING_LEVEL_DEFAULT "-Wall" CACHE STRING "Default compiler warning level.")
+    endif()
     set_property(CACHE CMH_WARNING_LEVEL_DEFAULT PROPERTY STRINGS ${CMH_WARNING_LEVEL_OPTIONS})
 
     # Create a variable that will be used to store a copy of the current default warning level
@@ -693,9 +716,13 @@ macro(CMH_WARNING_LEVEL_HELPER)
     if(NOT CURRENT_COMPILE_OPTIONS)
       set(CURRENT_COMPILE_OPTIONS "")
     endif()
-    list(APPEND CURRENT_COMPILE_OPTIONS ${CMH_WARNING_LEVEL_${TARGET_NAME}})
+    separate_arguments(CMH_WARNING_LEVEL_${TARGET_NAME})
+    foreach(OPTION ${CMH_WARNING_LEVEL_${TARGET_NAME}})
+      list(APPEND CURRENT_COMPILE_OPTIONS ${OPTION})
+    endforeach()
+    unset(OPTION)
     set_target_properties(${TARGET_NAME} PROPERTIES
-      COMPILE_OPTIONS ${CURRENT_COMPILE_OPTIONS})
+      COMPILE_OPTIONS "${CURRENT_COMPILE_OPTIONS}")
   endif()
 endmacro(CMH_WARNING_LEVEL_HELPER)
 
