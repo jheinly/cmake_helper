@@ -3,6 +3,9 @@
 # TODO: verify that CUDA-specific settings aren't being accidentally propagated to other modules
 # TODO: test standalone CUDA executable support
 # TODO: add Qt5 support
+# TODO: add functionality so that modules can either be permanently flagged as a 3rd-party module,
+#       or flagged as a 3rd-party module when they are included, and then add a default warning
+#       level for 3rd-party modules
 
 # CMake 3.0 is required as it added the add_library() INTERFACE option.
 cmake_minimum_required(VERSION 3.0)
@@ -669,9 +672,9 @@ macro(CMH_WARNING_LEVEL_HELPER)
 
   if(NOT CMH_IS_HEADER_MODULE)
     if(MSVC)
-      set(CMH_WARNING_LEVEL_OPTIONS /W0 /W1 /W2 /W3 /W4 /Wall)
+      set(CMH_WARNING_LEVEL_OPTIONS /w /W0 /W1 /W2 /W3 /W4 /Wall)
     elseif(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
-      set(CMH_WARNING_LEVEL_OPTIONS -Wall "-Wall -pedantic -Wextra -Wno-long-long")
+      set(CMH_WARNING_LEVEL_OPTIONS -w -Wall "-Wall -pedantic -Wextra -Wno-long-long")
     endif()
 
     # Setup the default warning level.
