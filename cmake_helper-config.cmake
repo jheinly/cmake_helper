@@ -3,9 +3,6 @@
 # TODO: verify that CUDA-specific settings aren't being accidentally propagated to other modules
 # TODO: test standalone CUDA executable support
 # TODO: add Qt5 support
-# TODO: add functionality so that modules can either be permanently flagged as a 3rd-party module,
-#       or flagged as a 3rd-party module when they are included, and then add a default warning
-#       level for 3rd-party modules
 
 # CMake 3.0 is required as it added the add_library() INTERFACE option.
 cmake_minimum_required(VERSION 3.0)
@@ -144,6 +141,16 @@ if(CMH_REMOVED_WARNING_LEVEL)
   set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} CACHE STRING "Flags used by the compiler during all build types." FORCE)
   set(CMAKE_C_FLAGS ${CMAKE_C_FLAGS} CACHE STRING "Flags used by the compiler during all build types." FORCE)
 endif()
+
+macro(CMH_SET_AS_THIRD_PARTY_MODULE)
+  # Get the name of this module (based on the name of its config file).
+  CMH_GET_MODULE_NAME(CMH_MODULE_NAME ${CMAKE_CURRENT_LIST_FILE})
+
+  if(NOT CMH_THIRD_PARTY_MODULES)
+    set(CMH_THIRD_PARTY_MODULES "")
+  endif()
+  CMH_LIST_APPEND_IF_UNIQUE(CMH_THIRD_PARTY_MODULES ${CMH_MODULE_NAME})
+endmacro(CMH_SET_AS_THIRD_PARTY_MODULE)
 
 # This macro is called from a module's *-config.cmake file. It takes as input the names or
 # *-config.cmake paths to other cmake_helper modules on which this module depends.
@@ -644,6 +651,9 @@ macro(CMH_GET_TARGET_TYPE TARGET_NAME)
 
   # Determine whether or not the current module is a CUDA module.
   CMH_LIST_CONTAINS(CMH_IS_CUDA_MODULE ${TARGET_NAME} ${CMH_CUDA_MODULE_NAMES})
+
+  # Determine whether or not the current module is a 3rd-party module.
+  CMH_LIST_CONTAINS(CMH_IS_THIRD_PARTY_MODULE ${TARGET_NAME} ${CMH_THIRD_PARTY_MODULES})
 endmacro(CMH_GET_TARGET_TYPE)
 
 # Undefine (unset) the variables that are created by the cmh_get_target_type() macro.
@@ -652,6 +662,7 @@ macro(CMH_UNSET_TARGET_TYPE)
   unset(CMH_IS_EXECUTABLE)
   unset(CMH_IS_HEADER_MODULE)
   unset(CMH_IS_CUDA_MODULE)
+  unset(CMH_IS_THIRD_PARTY_MODULE)
 endmacro(CMH_UNSET_TARGET_TYPE)
 
 # This macro creates a new CMake variable in the GUI that allows the user to specify
@@ -671,10 +682,12 @@ macro(CMH_WARNING_LEVEL_HELPER)
   CMH_GET_TARGET_TYPE(${TARGET_NAME})
 
   if(NOT CMH_IS_HEADER_MODULE)
+    set(CMH_COMPILER_DEFAULT_WARNING_LEVEL "<compiler default>")
+
     if(MSVC)
-      set(CMH_WARNING_LEVEL_OPTIONS /w /W0 /W1 /W2 /W3 /W4 /Wall)
+      set(CMH_WARNING_LEVEL_OPTIONS ${CMH_COMPILER_DEFAULT_WARNING_LEVEL} /W0 /W1 /W2 /W3 /W4 /Wall)
     elseif(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
-      set(CMH_WARNING_LEVEL_OPTIONS -w -Wall "-Wall -pedantic -Wextra -Wno-long-long")
+      set(CMH_WARNING_LEVEL_OPTIONS ${CMH_COMPILER_DEFAULT_WARNING_LEVEL} -w -Wall "-Wall -pedantic -Wextra -Wno-long-long")
     endif()
 
     # Setup the default warning level.
@@ -685,11 +698,28 @@ macro(CMH_WARNING_LEVEL_HELPER)
     endif()
     set_property(CACHE CMH_WARNING_LEVEL_DEFAULT PROPERTY STRINGS ${CMH_WARNING_LEVEL_OPTIONS})
 
+    # Setup the default warning level for 3rd-party modules.
+    if(CMH_IS_THIRD_PARTY_MODULE)
+      if(MSVC)
+        set(CMH_WARNING_LEVEL_THIRD_PARTY_DEFAULT "/W0" CACHE STRING "Default compiler warning level for 3rd-party modules.")
+      elseif(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
+        set(CMH_WARNING_LEVEL_THIRD_PARTY_DEFAULT "-w" CACHE STRING "Default compiler warning level for 3rd-party modules.")
+      endif()
+      set_property(CACHE CMH_WARNING_LEVEL_THIRD_PARTY_DEFAULT PROPERTY STRINGS ${CMH_WARNING_LEVEL_OPTIONS})
+    endif()
+
     # Create a variable that will be used to store a copy of the current default warning level
     # so that we can detect when it changes.
     if(NOT DEFINED CMH_WARNING_LEVEL_DEFAULT_COPY)
       set(CMH_WARNING_LEVEL_DEFAULT_COPY ""
         CACHE INTERNAL "Copy of the default compiler warning level.")
+    endif()
+
+    # Create a variable that will be used to store a copy of the current default warning level
+    # for 3rd-party modules so that we can detect when it changes.
+    if(NOT DEFINED CMH_WARNING_LEVEL_THIRD_PARTY_DEFAULT_COPY)
+      set(CMH_WARNING_LEVEL_THIRD_PARTY_DEFAULT_COPY ""
+        CACHE INTERNAL "Copy of the default compiler warning level for 3rd-party modules.")
     endif()
 
     # Test if the default warning level changed, but only test it once per CMake configure operation.
@@ -706,27 +736,59 @@ macro(CMH_WARNING_LEVEL_HELPER)
       set(CMH_WARNING_LEVEL_DEFAULT_CHANGED ${CMH_WARNING_LEVEL_DEFAULT_CHANGED} PARENT_SCOPE)
     endif()
 
+    # Test if the default warning level for 3rd-party modules changed, but only
+    # test it once per CMake configure operation.
+    if(NOT DEFINED CMH_WARNING_LEVEL_THIRD_PARTY_DEFAULT_CHANGED)
+      if(CMH_WARNING_LEVEL_THIRD_PARTY_DEFAULT STREQUAL CMH_WARNING_LEVEL_THIRD_PARTY_DEFAULT_COPY)
+        set(CMH_WARNING_LEVEL_THIRD_PARTY_DEFAULT_CHANGED FALSE)
+      else()
+        set(CMH_WARNING_LEVEL_THIRD_PARTY_DEFAULT_CHANGED TRUE)
+        set(CMH_WARNING_LEVEL_THIRD_PARTY_DEFAULT_COPY ${CMH_WARNING_LEVEL_DEFAULT}
+          CACHE INTERNAL "Copy of the default compiler warning level.")
+      endif()
+    endif()
+    if(CMH_ADDING_MODULE)
+      set(CMH_WARNING_LEVEL_THIRD_PARTY_DEFAULT_CHANGED ${CMH_WARNING_LEVEL_THIRD_PARTY_DEFAULT_CHANGED} PARENT_SCOPE)
+    endif()
+
     # Create the CMake GUI variable.
     set(CMH_WARNING_LEVEL_${TARGET_NAME} ${CMH_WARNING_LEVEL_DEFAULT} CACHE STRING "Compiler warning level.")
     set_property(CACHE CMH_WARNING_LEVEL_${TARGET_NAME} PROPERTY STRINGS ${CMH_WARNING_LEVEL_OPTIONS})
-    if(CMH_WARNING_LEVEL_DEFAULT_CHANGED)
-      set(CMH_WARNING_LEVEL_${TARGET_NAME} ${CMH_WARNING_LEVEL_DEFAULT}
-        CACHE STRING "Compiler warning level." FORCE)
+    if(CMH_IS_THIRD_PARTY_MODULE)
+      # This is a 3rd-party module, so check to see if the 3rd-party module
+      # default warning level changed.
+      if(CMH_WARNING_LEVEL_THIRD_PARTY_DEFAULT_CHANGED)
+        set(CMH_WARNING_LEVEL_${TARGET_NAME} ${CMH_WARNING_LEVEL_THIRD_PARTY_DEFAULT}
+          CACHE STRING "Compiler warning level." FORCE)
+      endif()
+    else()
+      # This is not a 3rd-party module, so check to see if the default module
+      # warning level changed.
+      if(CMH_WARNING_LEVEL_DEFAULT_CHANGED)
+        set(CMH_WARNING_LEVEL_${TARGET_NAME} ${CMH_WARNING_LEVEL_DEFAULT}
+          CACHE STRING "Compiler warning level." FORCE)
+      endif()
     endif()
 
-    # Get the current compile options, and append the user-provided warning level.
-    get_target_property(CURRENT_COMPILE_OPTIONS ${TARGET_NAME} COMPILE_OPTIONS)
-    if(NOT CURRENT_COMPILE_OPTIONS)
-      set(CURRENT_COMPILE_OPTIONS "")
+    if(NOT ${CMH_WARNING_LEVEL_${TARGET_NAME}} STREQUAL ${CMH_COMPILER_DEFAULT_WARNING_LEVEL})
+      # Get the current compile options, and append the user-provided warning level.
+      get_target_property(CURRENT_COMPILE_OPTIONS ${TARGET_NAME} COMPILE_OPTIONS)
+      if(NOT CURRENT_COMPILE_OPTIONS)
+        set(CURRENT_COMPILE_OPTIONS "")
+      endif()
+      separate_arguments(CMH_WARNING_LEVEL_${TARGET_NAME})
+      foreach(OPTION ${CMH_WARNING_LEVEL_${TARGET_NAME}})
+        list(APPEND CURRENT_COMPILE_OPTIONS ${OPTION})
+      endforeach()
+      unset(OPTION)
+      set_target_properties(${TARGET_NAME} PROPERTIES
+        COMPILE_OPTIONS "${CURRENT_COMPILE_OPTIONS}")
     endif()
-    separate_arguments(CMH_WARNING_LEVEL_${TARGET_NAME})
-    foreach(OPTION ${CMH_WARNING_LEVEL_${TARGET_NAME}})
-      list(APPEND CURRENT_COMPILE_OPTIONS ${OPTION})
-    endforeach()
-    unset(OPTION)
-    set_target_properties(${TARGET_NAME} PROPERTIES
-      COMPILE_OPTIONS "${CURRENT_COMPILE_OPTIONS}")
+
+    unset(CMH_COMPILER_DEFAULT_WARNING_LEVEL)
   endif()
+
+  CMH_UNSET_TARGET_TYPE()
 endmacro(CMH_WARNING_LEVEL_HELPER)
 
 # This macro detects if OpenMP has been requested and found in the current module,
