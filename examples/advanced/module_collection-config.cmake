@@ -13,6 +13,9 @@ if(${CMH_MODULE_COLLECTION_NAME}_FIND_COMPONENTS)
     # a ${CMAKE_CURRENT_LIST_DIR}/module_name/module_name-config.cmake file exists.
     find_package(${COMPONENT} PATHS ${CMAKE_CURRENT_LIST_DIR}/${COMPONENT})
   endforeach()
+  unset(COMPONENT)
 else()
   message(WARNING "No dependency modules specified. Please call find_package(${CMH_MODULE_COLLECTION_NAME} COMPONENTS ...) with a list of the dependency modules.")
 endif()
+
+unset(CMH_MODULE_COLLECTION_NAME)
