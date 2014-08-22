@@ -37,7 +37,8 @@ endif()
 # Override the default optimization level for Release mode set by CMake
 # and set it to a higher level.
 # NOTE: using fast math is not allowed by SQLite.
-set(CMH_ENABLE_FAST_MATH FALSE CACHE BOOL "Whether or not to enable fast math optimizations in the compiler.")
+set(CMH_ENABLE_FAST_MATH FALSE
+  CACHE BOOL "Whether or not to enable fast math optimizations in the compiler.")
 set(CMH_CHANGED_OPTIMIZATION_LEVEL FALSE)
 if(MSVC)
   # CXX Flags
@@ -100,8 +101,10 @@ elseif(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
 endif()
 if(CMH_CHANGED_OPTIMIZATION_LEVEL)
   message("cmake_helper: Changed default optimization level in CMAKE_CXX_FLAGS_RELEASE.")
-  set(CMAKE_CXX_FLAGS_RELEASE ${CMAKE_CXX_FLAGS_RELEASE} CACHE STRING "Flags used by the compiler during all build types." FORCE)
-  set(CMAKE_C_FLAGS_RELEASE ${CMAKE_C_FLAGS_RELEASE} CACHE STRING "Flags used by the compiler during all build types." FORCE)
+  set(CMAKE_CXX_FLAGS_RELEASE ${CMAKE_CXX_FLAGS_RELEASE}
+    CACHE STRING "Flags used by the compiler during all build types." FORCE)
+  set(CMAKE_C_FLAGS_RELEASE ${CMAKE_C_FLAGS_RELEASE}
+    CACHE STRING "Flags used by the compiler during all build types." FORCE)
 endif()
 
 # Remove the default warning level set by CMake so that later code (cmh_warning_level_helper)
@@ -138,8 +141,10 @@ elseif(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
 endif()
 if(CMH_REMOVED_WARNING_LEVEL)
   message("cmake_helper: Removed warning level from default CMAKE_CXX_FLAGS.")
-  set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} CACHE STRING "Flags used by the compiler during all build types." FORCE)
-  set(CMAKE_C_FLAGS ${CMAKE_C_FLAGS} CACHE STRING "Flags used by the compiler during all build types." FORCE)
+  set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS}
+    CACHE STRING "Flags used by the compiler during all build types." FORCE)
+  set(CMAKE_C_FLAGS ${CMAKE_C_FLAGS}
+    CACHE STRING "Flags used by the compiler during all build types." FORCE)
 endif()
 
 macro(CMH_SET_AS_THIRD_PARTY_MODULE)
@@ -685,9 +690,11 @@ macro(CMH_WARNING_LEVEL_HELPER)
     set(CMH_COMPILER_DEFAULT_WARNING_LEVEL "<compiler default>")
 
     if(MSVC)
-      set(CMH_WARNING_LEVEL_OPTIONS ${CMH_COMPILER_DEFAULT_WARNING_LEVEL} /W0 /W1 /W2 /W3 /W4 /Wall)
+      set(CMH_WARNING_LEVEL_OPTIONS
+        ${CMH_COMPILER_DEFAULT_WARNING_LEVEL} /W0 /W1 /W2 /W3 /W4 /Wall)
     elseif(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
-      set(CMH_WARNING_LEVEL_OPTIONS ${CMH_COMPILER_DEFAULT_WARNING_LEVEL} -w -Wall "-Wall -pedantic -Wextra -Wno-long-long")
+      set(CMH_WARNING_LEVEL_OPTIONS
+        ${CMH_COMPILER_DEFAULT_WARNING_LEVEL} -w -Wall "-Wall -pedantic -Wextra -Wno-long-long")
     endif()
 
     # Setup the default warning level.
@@ -701,9 +708,11 @@ macro(CMH_WARNING_LEVEL_HELPER)
     # Setup the default warning level for 3rd-party modules.
     if(CMH_IS_THIRD_PARTY_MODULE)
       if(MSVC)
-        set(CMH_WARNING_LEVEL_THIRD_PARTY_DEFAULT "/W0" CACHE STRING "Default compiler warning level for 3rd-party modules.")
+        set(CMH_WARNING_LEVEL_THIRD_PARTY_DEFAULT "/W0"
+          CACHE STRING "Default compiler warning level for 3rd-party modules.")
       elseif(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
-        set(CMH_WARNING_LEVEL_THIRD_PARTY_DEFAULT "-w" CACHE STRING "Default compiler warning level for 3rd-party modules.")
+        set(CMH_WARNING_LEVEL_THIRD_PARTY_DEFAULT "-w"
+          CACHE STRING "Default compiler warning level for 3rd-party modules.")
       endif()
       set_property(CACHE CMH_WARNING_LEVEL_THIRD_PARTY_DEFAULT PROPERTY STRINGS ${CMH_WARNING_LEVEL_OPTIONS})
     endif()
@@ -748,11 +757,13 @@ macro(CMH_WARNING_LEVEL_HELPER)
       endif()
     endif()
     if(CMH_ADDING_MODULE)
-      set(CMH_WARNING_LEVEL_THIRD_PARTY_DEFAULT_CHANGED ${CMH_WARNING_LEVEL_THIRD_PARTY_DEFAULT_CHANGED} PARENT_SCOPE)
+      set(CMH_WARNING_LEVEL_THIRD_PARTY_DEFAULT_CHANGED
+        ${CMH_WARNING_LEVEL_THIRD_PARTY_DEFAULT_CHANGED} PARENT_SCOPE)
     endif()
 
     # Create the CMake GUI variable.
-    set(CMH_WARNING_LEVEL_${TARGET_NAME} ${CMH_WARNING_LEVEL_DEFAULT} CACHE STRING "Compiler warning level.")
+    set(CMH_WARNING_LEVEL_${TARGET_NAME} ${CMH_WARNING_LEVEL_DEFAULT}
+      CACHE STRING "Compiler warning level.")
     set_property(CACHE CMH_WARNING_LEVEL_${TARGET_NAME} PROPERTY STRINGS ${CMH_WARNING_LEVEL_OPTIONS})
     if(CMH_IS_THIRD_PARTY_MODULE)
       # This is a 3rd-party module, so check to see if the 3rd-party module
@@ -907,10 +918,12 @@ macro(CMH_FIND_BOOST_HELPER)
     # If the Boost root and library directories have not already been set to valid values,
     # overwrite them with the values provided above.
     if(NOT BOOST_ROOT OR NOT EXISTS ${BOOST_ROOT})
-      set(BOOST_ROOT ${CMH_BOOST_ROOT_DIR} CACHE INTERNAL "Hint for Boost root directory location.")
+      set(BOOST_ROOT ${CMH_BOOST_ROOT_DIR}
+        CACHE INTERNAL "Hint for Boost root directory location.")
     endif()
     if(NOT BOOST_LIBRARYDIR OR NOT EXISTS ${BOOST_LIBRARYDIR})
-      set(BOOST_LIBRARYDIR ${CMH_BOOST_LIBRARY_DIR} CACHE INTERNAL "Hint for Boost library directory location.")
+      set(BOOST_LIBRARYDIR ${CMH_BOOST_LIBRARY_DIR}
+        CACHE INTERNAL "Hint for Boost library directory location.")
     endif()
   endif()
 endmacro(CMH_FIND_BOOST_HELPER)
@@ -925,8 +938,10 @@ macro(CMH_PREPARE_CUDA_COMPILER OUTPUT_NAME)
   CMH_BOOST_CUDA_FLAGS_HELPER()
 
   if(NOT CMH_CUDA_COMPUTE_CAPABILITY)
-    set(CMH_CUDA_COMPUTE_CAPABILITY "1.0" CACHE STRING "CUDA compute capability of target GPU device.")
-    set_property(CACHE CMH_CUDA_COMPUTE_CAPABILITY PROPERTY STRINGS 1.0 1.1 1.2 1.3 2.0 2.1 3.0 3.5 5.0)
+    set(CMH_CUDA_COMPUTE_CAPABILITY "1.0"
+      CACHE STRING "CUDA compute capability of target GPU device.")
+    set_property(CACHE CMH_CUDA_COMPUTE_CAPABILITY PROPERTY STRINGS
+      1.0 1.1 1.2 1.3 2.0 2.1 3.0 3.5 5.0)
   endif()
   string(REPLACE "." "" CAPABILITY ${CMH_CUDA_COMPUTE_CAPABILITY})
   if(CAPABILITY STREQUAL "21")
@@ -936,7 +951,8 @@ macro(CMH_PREPARE_CUDA_COMPILER OUTPUT_NAME)
   endif()
   unset(CAPABILITY)
 
-  set(CMH_CUDA_COMPILER_VERBOSE TRUE CACHE BOOL "Whether or not the CUDA compiler should provide verbose output.")
+  set(CMH_CUDA_COMPILER_VERBOSE TRUE
+    CACHE BOOL "Whether or not the CUDA compiler should provide verbose output.")
   if(CMH_CUDA_COMPILER_VERBOSE)
     # Tell the CUDA compiler to provide verbose output, specifically so that
     # the register and shared memory usage is printed when compiling.
@@ -1034,7 +1050,8 @@ macro(CMH_FIND_CUDA_SDK_HELPER)
 
       if(CUDA_SDK_PATH_GUESS)
         if(IS_DIRECTORY ${CUDA_SDK_PATH_GUESS})
-          set(CUDA_SDK_ROOT_DIR ${CUDA_SDK_PATH_GUESS} CACHE PATH "Path to CUDA SDK directory." FORCE)
+          set(CUDA_SDK_ROOT_DIR ${CUDA_SDK_PATH_GUESS}
+            CACHE PATH "Path to CUDA SDK directory." FORCE)
           message("cmake_helper: Found CUDA SDK: ${CUDA_SDK_ROOT_DIR}")
         endif()
       endif()
