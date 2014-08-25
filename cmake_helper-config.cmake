@@ -699,84 +699,84 @@ macro(CMH_WARNING_LEVEL_HELPER)
 
     # Setup the default warning level.
     if(MSVC)
-      set(CMH_WARNING_LEVEL_DEFAULT "/W3" CACHE STRING "Default compiler warning level.")
+      set(CMH_DEFAULT_WARNING_LEVEL "/W3" CACHE STRING "Default compiler warning level.")
     elseif(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
-      set(CMH_WARNING_LEVEL_DEFAULT "-Wall" CACHE STRING "Default compiler warning level.")
+      set(CMH_DEFAULT_WARNING_LEVEL "-Wall" CACHE STRING "Default compiler warning level.")
     endif()
-    set_property(CACHE CMH_WARNING_LEVEL_DEFAULT PROPERTY STRINGS ${CMH_WARNING_LEVEL_OPTIONS})
+    set_property(CACHE CMH_DEFAULT_WARNING_LEVEL PROPERTY STRINGS ${CMH_WARNING_LEVEL_OPTIONS})
 
     # Setup the default warning level for 3rd-party modules.
     if(CMH_IS_THIRD_PARTY_MODULE)
       if(MSVC)
-        set(CMH_WARNING_LEVEL_THIRD_PARTY_DEFAULT "/W0"
+        set(CMH_DEFAULT_WARNING_LEVEL_THIRD_PARTY "/W0"
           CACHE STRING "Default compiler warning level for 3rd-party modules.")
       elseif(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
-        set(CMH_WARNING_LEVEL_THIRD_PARTY_DEFAULT "-w"
+        set(CMH_DEFAULT_WARNING_LEVEL_THIRD_PARTY "-w"
           CACHE STRING "Default compiler warning level for 3rd-party modules.")
       endif()
-      set_property(CACHE CMH_WARNING_LEVEL_THIRD_PARTY_DEFAULT PROPERTY STRINGS ${CMH_WARNING_LEVEL_OPTIONS})
+      set_property(CACHE CMH_DEFAULT_WARNING_LEVEL_THIRD_PARTY PROPERTY STRINGS ${CMH_WARNING_LEVEL_OPTIONS})
     endif()
 
     # Create a variable that will be used to store a copy of the current default warning level
     # so that we can detect when it changes.
-    if(NOT DEFINED CMH_WARNING_LEVEL_DEFAULT_COPY)
-      set(CMH_WARNING_LEVEL_DEFAULT_COPY ""
+    if(NOT DEFINED CMH_DEFAULT_WARNING_LEVEL_COPY)
+      set(CMH_DEFAULT_WARNING_LEVEL_COPY ""
         CACHE INTERNAL "Copy of the default compiler warning level.")
     endif()
 
     # Create a variable that will be used to store a copy of the current default warning level
     # for 3rd-party modules so that we can detect when it changes.
-    if(NOT DEFINED CMH_WARNING_LEVEL_THIRD_PARTY_DEFAULT_COPY)
-      set(CMH_WARNING_LEVEL_THIRD_PARTY_DEFAULT_COPY ""
+    if(NOT DEFINED CMH_DEFAULT_WARNING_LEVEL_THIRD_PARTY_COPY)
+      set(CMH_DEFAULT_WARNING_LEVEL_THIRD_PARTY_COPY ""
         CACHE INTERNAL "Copy of the default compiler warning level for 3rd-party modules.")
     endif()
 
     # Test if the default warning level changed, but only test it once per CMake configure operation.
-    if(NOT DEFINED CMH_WARNING_LEVEL_DEFAULT_CHANGED)
-      if(CMH_WARNING_LEVEL_DEFAULT STREQUAL CMH_WARNING_LEVEL_DEFAULT_COPY)
-        set(CMH_WARNING_LEVEL_DEFAULT_CHANGED FALSE)
+    if(NOT DEFINED CMH_DEFAULT_WARNING_LEVEL_CHANGED)
+      if(CMH_DEFAULT_WARNING_LEVEL STREQUAL CMH_DEFAULT_WARNING_LEVEL_COPY)
+        set(CMH_DEFAULT_WARNING_LEVEL_CHANGED FALSE)
       else()
-        set(CMH_WARNING_LEVEL_DEFAULT_CHANGED TRUE)
-        set(CMH_WARNING_LEVEL_DEFAULT_COPY ${CMH_WARNING_LEVEL_DEFAULT}
+        set(CMH_DEFAULT_WARNING_LEVEL_CHANGED TRUE)
+        set(CMH_DEFAULT_WARNING_LEVEL_COPY ${CMH_DEFAULT_WARNING_LEVEL}
           CACHE INTERNAL "Copy of the default compiler warning level.")
       endif()
     endif()
     if(CMH_ADDING_MODULE)
-      set(CMH_WARNING_LEVEL_DEFAULT_CHANGED ${CMH_WARNING_LEVEL_DEFAULT_CHANGED} PARENT_SCOPE)
+      set(CMH_DEFAULT_WARNING_LEVEL_CHANGED ${CMH_DEFAULT_WARNING_LEVEL_CHANGED} PARENT_SCOPE)
     endif()
 
     # Test if the default warning level for 3rd-party modules changed, but only
     # test it once per CMake configure operation.
-    if(NOT DEFINED CMH_WARNING_LEVEL_THIRD_PARTY_DEFAULT_CHANGED)
-      if(CMH_WARNING_LEVEL_THIRD_PARTY_DEFAULT STREQUAL CMH_WARNING_LEVEL_THIRD_PARTY_DEFAULT_COPY)
-        set(CMH_WARNING_LEVEL_THIRD_PARTY_DEFAULT_CHANGED FALSE)
+    if(NOT DEFINED CMH_DEFAULT_WARNING_LEVEL_THIRD_PARTY_CHANGED)
+      if(CMH_DEFAULT_WARNING_LEVEL_THIRD_PARTY STREQUAL CMH_DEFAULT_WARNING_LEVEL_THIRD_PARTY_COPY)
+        set(CMH_DEFAULT_WARNING_LEVEL_THIRD_PARTY_CHANGED FALSE)
       else()
-        set(CMH_WARNING_LEVEL_THIRD_PARTY_DEFAULT_CHANGED TRUE)
-        set(CMH_WARNING_LEVEL_THIRD_PARTY_DEFAULT_COPY ${CMH_WARNING_LEVEL_DEFAULT}
+        set(CMH_DEFAULT_WARNING_LEVEL_THIRD_PARTY_CHANGED TRUE)
+        set(CMH_DEFAULT_WARNING_LEVEL_THIRD_PARTY_COPY ${CMH_DEFAULT_WARNING_LEVEL}
           CACHE INTERNAL "Copy of the default compiler warning level.")
       endif()
     endif()
     if(CMH_ADDING_MODULE)
-      set(CMH_WARNING_LEVEL_THIRD_PARTY_DEFAULT_CHANGED
-        ${CMH_WARNING_LEVEL_THIRD_PARTY_DEFAULT_CHANGED} PARENT_SCOPE)
+      set(CMH_DEFAULT_WARNING_LEVEL_THIRD_PARTY_CHANGED
+        ${CMH_DEFAULT_WARNING_LEVEL_THIRD_PARTY_CHANGED} PARENT_SCOPE)
     endif()
 
     # Create the CMake GUI variable.
-    set(CMH_WARNING_LEVEL_${TARGET_NAME} ${CMH_WARNING_LEVEL_DEFAULT}
+    set(CMH_WARNING_LEVEL_${TARGET_NAME} ${CMH_DEFAULT_WARNING_LEVEL}
       CACHE STRING "Compiler warning level.")
     set_property(CACHE CMH_WARNING_LEVEL_${TARGET_NAME} PROPERTY STRINGS ${CMH_WARNING_LEVEL_OPTIONS})
     if(CMH_IS_THIRD_PARTY_MODULE)
       # This is a 3rd-party module, so check to see if the 3rd-party module
       # default warning level changed.
-      if(CMH_WARNING_LEVEL_THIRD_PARTY_DEFAULT_CHANGED)
-        set(CMH_WARNING_LEVEL_${TARGET_NAME} ${CMH_WARNING_LEVEL_THIRD_PARTY_DEFAULT}
+      if(CMH_DEFAULT_WARNING_LEVEL_THIRD_PARTY_CHANGED)
+        set(CMH_WARNING_LEVEL_${TARGET_NAME} ${CMH_DEFAULT_WARNING_LEVEL_THIRD_PARTY}
           CACHE STRING "Compiler warning level." FORCE)
       endif()
     else()
       # This is not a 3rd-party module, so check to see if the default module
       # warning level changed.
-      if(CMH_WARNING_LEVEL_DEFAULT_CHANGED)
-        set(CMH_WARNING_LEVEL_${TARGET_NAME} ${CMH_WARNING_LEVEL_DEFAULT}
+      if(CMH_DEFAULT_WARNING_LEVEL_CHANGED)
+        set(CMH_WARNING_LEVEL_${TARGET_NAME} ${CMH_DEFAULT_WARNING_LEVEL}
           CACHE STRING "Compiler warning level." FORCE)
       endif()
     endif()
