@@ -959,6 +959,15 @@ macro(CMH_PREPARE_CUDA_COMPILER OUTPUT_NAME)
     list(APPEND ${OUTPUT_NAME} "--ptxas-options=-v")
   endif()
 
+  set(CMH_CUDA_ENABLE_LINE_INFO_FOR_PROFILER FALSE
+    CACHE BOOL "Whether or not the CUDA compiler should embed source code line info in the binary.")
+  if(CMH_CUDA_ENABLE_LINE_INFO_FOR_PROFILER)
+    # Tell the CUDA compiler to embed source code line information in the
+    # compiled binary. This will allow the CUDA profiler to highlight the
+    # lines in the code that need optimization.
+    list(APPEND ${OUTPUT_NAME} "-lineinfo")
+  endif()
+
   # Iterate through the dependencies of this module and add their include directories
   # and compile definitions as these must be specified before creating the CUDA target.
   # Note that the definitions and include directories will only apply to the CUDA
