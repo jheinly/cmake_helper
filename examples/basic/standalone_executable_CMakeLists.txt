@@ -5,6 +5,9 @@ project(YourProjectName)
 
 find_package(cmake_helper REQUIRED)
 
+# Set default lib/bin output folders for compiled libraries/binaries.
+cmh_set_output_directories()
+
 # Find modules designed with cmake_helper using find_package commands.
 # To hard-code a hint as to where to find the module, use the PATHS option.
 # ex. find_package(module_name)
