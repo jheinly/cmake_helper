@@ -937,18 +937,23 @@ macro(CMH_PREPARE_CUDA_COMPILER OUTPUT_NAME)
   # We need to set Boost compile definitions before creating a CUDA target.
   CMH_BOOST_CUDA_FLAGS_HELPER()
 
-  if(NOT CMH_CUDA_COMPUTE_CAPABILITY)
-    set(CMH_CUDA_COMPUTE_CAPABILITY "1.0"
-      CACHE STRING "CUDA compute capability of target GPU device.")
-    set_property(CACHE CMH_CUDA_COMPUTE_CAPABILITY PROPERTY STRINGS
-      1.0 1.1 1.2 1.3 2.0 2.1 3.0 3.5 5.0)
-  endif()
-  string(REPLACE "." "" CAPABILITY ${CMH_CUDA_COMPUTE_CAPABILITY})
-  if(CAPABILITY STREQUAL "21")
-    set(${OUTPUT_NAME} "-arch=compute_20 -code=sm_21,compute_20")
-  else()
-    set(${OUTPUT_NAME} "-arch=compute_${CAPABILITY} -code=sm_${CAPABILITY},compute_${CAPABILITY}")
-  endif()
+  set(OUTPUT_NAME "")
+
+  set(COMPUTE_CAPABILITY_LIST 1.0 1.1 1.2 1.3 2.0 2.1 3.0 3.5 5.0)
+  foreach(COMPUTE_CAPABILITY ${COMPUTE_CAPABILITY_LIST})
+    set(CMH_CUDA_COMPUTE_CAPABILITY_${COMPUTE_CAPABILITY}_ENABLED FALSE
+      CACHE BOOL "Whether or not to target CUDA compute capability ${COMPUTE_CAPABILITY}")
+    if(${CMH_CUDA_COMPUTE_CAPABILITY_${COMPUTE_CAPABILITY}_ENABLED})
+      string(REPLACE "." "" CAPABILITY ${COMPUTE_CAPABILITY})
+      if(CAPABILITY STREQUAL "21")
+        list(APPEND ${OUTPUT_NAME} "-gencode arch=compute_20,code=sm_21")
+      else()
+        list(APPEND ${OUTPUT_NAME} "-gencode arch=compute_${CAPABILITY},code=sm_${CAPABILITY}")
+      endif()
+    endif()
+  endforeach()
+  unset(COMPUTE_CAPABILITY_LIST)
+  unset(COMPUTE_CAPABILITY)
   unset(CAPABILITY)
 
   set(CMH_CUDA_COMPILER_VERBOSE TRUE
