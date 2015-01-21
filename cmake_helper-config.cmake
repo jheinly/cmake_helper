@@ -147,6 +147,29 @@ if(CMH_REMOVED_WARNING_LEVEL)
     CACHE STRING "Flags used by the compiler during all build types." FORCE)
 endif()
 
+# Add the enhanced Release debugging flag if Visual Studio 2013 is being used.
+set(CMH_ADDED_ENHANCED_RELEASE_DEBUGGING FALSE)
+if(MSVC12)
+  # CXX Flags
+  if(NOT CMAKE_CXX_FLAGS MATCHES "/Zo")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Zo")
+    set(CMH_ADDED_ENHANCED_RELEASE_DEBUGGING TRUE)
+  endif()
+  # C Flags
+  if(NOT CMAKE_C_FLAGS MATCHES "/Zo")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /Zo")
+    set(CMH_ADDED_ENHANCED_RELEASE_DEBUGGING TRUE)
+  endif()
+endif()
+if(CMH_ADDED_ENHANCED_RELEASE_DEBUGGING)
+  set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS}
+    CACHE STRING "Flags used by the compiler during all build types." FORCE)
+  set(CMAKE_C_FLAGS ${CMAKE_C_FLAGS}
+    CACHE STRING "Flags used by the compiler during all build types." FORCE)
+  message("cmake_helper: Adding enhanced Release debugging flag for Visual Studio 2013."
+    " Make sure that the 'Enable native Edit and Continue' option is disabled in the Debugging option menu.")
+endif()
+
 macro(CMH_SET_AS_THIRD_PARTY_MODULE)
   # Get the name of this module (based on the name of its config file).
   CMH_GET_MODULE_NAME(CMH_MODULE_NAME ${CMAKE_CURRENT_LIST_FILE})
