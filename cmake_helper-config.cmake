@@ -166,8 +166,8 @@ if(CMH_ADDED_ENHANCED_RELEASE_DEBUGGING)
     CACHE STRING "Flags used by the compiler during all build types." FORCE)
   set(CMAKE_C_FLAGS ${CMAKE_C_FLAGS}
     CACHE STRING "Flags used by the compiler during all build types." FORCE)
-  message("cmake_helper: Adding enhanced Release debugging flag for Visual Studio 2013."
-    " Make sure that the 'Enable native Edit and Continue' option is disabled in the Debugging option menu.")
+  message("cmake_helper: Adding enhanced Release debugging flag for Visual Studio 2013.")
+  message("cmake_helper: Make sure that the 'Enable native Edit and Continue' option is disabled in the Debugging option menu.")
 endif()
 
 macro(CMH_SET_AS_THIRD_PARTY_MODULE)
