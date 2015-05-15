@@ -10,6 +10,17 @@ cmake_minimum_required(VERSION 3.0)
 # Include the following macro from the CMake Modules folder.
 include(CMakeParseArguments)
 
+# Helper variables to identify the compiler type.
+if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+  set(CMH_IS_MSVC TRUE)
+endif()
+if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+  set(CMH_IS_GNU TRUE)
+endif()
+if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "AppleClang")
+  set(CMH_IS_CLANG TRUE)
+endif()
+
 # If this is Mac OS, override the default compiler (which is probably one
 # provided by XCode).
 if(APPLE)
@@ -69,7 +80,7 @@ if(MSVC)
       set(CMH_CHANGED_OPTIMIZATION_LEVEL TRUE)
     endif()
   endif()
-elseif(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
+elseif(CMH_IS_GNU OR CMH_IS_CLANG)
   # CXX Flags
   if(CMAKE_CXX_FLAGS_RELEASE MATCHES "-O[1-2]")
     string(REGEX REPLACE "-O[1-2]" "" CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
@@ -127,7 +138,7 @@ if(MSVC)
     string(REGEX REPLACE "/Wall" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
     set(CMH_REMOVED_WARNING_LEVEL TRUE)
   endif()
-elseif(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
+elseif(CMH_IS_GNU OR CMH_IS_CLANG)
   # CXX Flags
   if(CMAKE_CXX_FLAGS MATCHES "-Wall")
     string(REGEX REPLACE "-Wall" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
@@ -726,7 +737,7 @@ macro(CMH_WARNING_LEVEL_HELPER)
     if(MSVC)
       set(CMH_WARNING_LEVEL_OPTIONS
         ${CMH_COMPILER_DEFAULT_WARNING_LEVEL} /W0 /W1 /W2 /W3 /W4 /Wall)
-    elseif(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
+    elseif(CMH_IS_GNU OR CMH_IS_CLANG)
       set(CMH_WARNING_LEVEL_OPTIONS
         ${CMH_COMPILER_DEFAULT_WARNING_LEVEL} -w -Wall "-Wall -pedantic -Wextra -Wno-long-long")
     endif()
@@ -734,7 +745,7 @@ macro(CMH_WARNING_LEVEL_HELPER)
     # Setup the default warning level.
     if(MSVC)
       set(CMH_DEFAULT_WARNING_LEVEL "/W3" CACHE STRING "Default compiler warning level.")
-    elseif(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
+    elseif(CMH_IS_GNU OR CMH_IS_CLANG)
       set(CMH_DEFAULT_WARNING_LEVEL "-Wall" CACHE STRING "Default compiler warning level.")
     endif()
     set_property(CACHE CMH_DEFAULT_WARNING_LEVEL PROPERTY STRINGS ${CMH_WARNING_LEVEL_OPTIONS})
@@ -744,7 +755,7 @@ macro(CMH_WARNING_LEVEL_HELPER)
       if(MSVC)
         set(CMH_DEFAULT_WARNING_LEVEL_THIRD_PARTY "/W0"
           CACHE STRING "Default compiler warning level for 3rd-party modules.")
-      elseif(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
+      elseif(CMH_IS_GNU OR CMH_IS_CLANG)
         set(CMH_DEFAULT_WARNING_LEVEL_THIRD_PARTY "-w"
           CACHE STRING "Default compiler warning level for 3rd-party modules.")
       endif()
