@@ -33,6 +33,26 @@ if(UNIX)
   endif()
 endif()
 
+if(CMH_IS_GNU OR CMH_IS_CLANG)
+  set(CMH_ENABLE_CXX11 TRUE
+    CACHE BOOL "Whether or not C++11 features should be enabled in the compiler.")
+  if(CMH_ENABLE_CXX11)
+    if(NOT CMAKE_CXX_FLAGS MATCHES "-std=c\\+\\+11")
+      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+      message("cmake_helper: Added C++11 support to CMAKE_CXX_FLAGS.")
+      set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS}
+        CACHE STRING "Flags used by the compiler during all build types." FORCE)
+    endif()
+  else()
+    if(CMAKE_CXX_FLAGS MATCHES "-std=c\\+\\+11")
+      string(REGEX REPLACE "-std=c\\+\\+11" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+      message("cmake_helper: Removed C++11 support from CMAKE_CXX_FLAGS.")
+      set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS}
+        CACHE STRING "Flags used by the compiler during all build types." FORCE)
+    endif()
+  endif()
+endif()
+
 # Override the default optimization level for Release mode set by CMake
 # and set it to a higher level.
 # NOTE: using fast math is not allowed by SQLite.
