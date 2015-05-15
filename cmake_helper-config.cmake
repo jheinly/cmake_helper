@@ -21,18 +21,6 @@ if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang" OR "${CMAKE_CXX_COMPILER_ID}" STR
   set(CMH_IS_CLANG TRUE)
 endif()
 
-# If this is Mac OS, override the default compiler (which is probably one
-# provided by XCode).
-if(APPLE)
-  set(CMH_APPLE_CXX_COMPILER /usr/bin/g++)
-  set(CMH_APPLE_C_COMPILER /usr/bin/gcc)
-  if(NOT ${CMAKE_CXX_COMPILER} STREQUAL ${CMH_APPLE_CXX_COMPILER})
-    message("cmake_helper: Overriding default compiler...")
-    set(CMAKE_C_COMPILER ${CMH_APPLE_C_COMPILER} CACHE PATH "C compiler." FORCE)
-    set(CMAKE_CXX_COMPILER ${CMH_APPLE_CXX_COMPILER} CACHE PATH "CXX compiler." FORCE)
-  endif()
-endif()
-
 # If the build type (Debug/Release) has not been set for a UNIX-style system,
 # go ahead and set it to Release. This helps avoid issues for configurations that
 # explicitly try to see if the current build type is either Debug or Release.
