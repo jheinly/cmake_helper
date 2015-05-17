@@ -7,6 +7,10 @@
 # CMake 3.0 is required as it added the add_library() INTERFACE option.
 cmake_minimum_required(VERSION 3.0)
 
+if(POLICY CMP0054)
+  cmake_policy(SET CMP0054 NEW)
+endif()
+
 # Include the following macro from the CMake Modules folder.
 include(CMakeParseArguments)
 
